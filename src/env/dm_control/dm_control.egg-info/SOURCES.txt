@@ -1,4 +1,9 @@
+AUTHORS
+CONTRIBUTING.md
+LICENSE
 README.md
+all_domains.png
+requirements.txt
 setup.py
 dm_control/__init__.py
 dm_control.egg-info/PKG-INFO
@@ -68,6 +73,7 @@ dm_control/entities/props/position_detector.py
 dm_control/entities/props/position_detector_test.py
 dm_control/entities/props/primitive.py
 dm_control/entities/props/primitive_test.py
+dm_control/locomotion/README.md
 dm_control/locomotion/__init__.py
 dm_control/locomotion/gaps.png
 dm_control/locomotion/walls.png
@@ -94,6 +100,7 @@ dm_control/locomotion/examples/explore.py
 dm_control/locomotion/props/__init__.py
 dm_control/locomotion/props/target_sphere.py
 dm_control/locomotion/props/target_sphere_test.py
+dm_control/locomotion/soccer/README.md
 dm_control/locomotion/soccer/__init__.py
 dm_control/locomotion/soccer/boxhead.py
 dm_control/locomotion/soccer/boxhead_test.py
@@ -152,6 +159,7 @@ dm_control/locomotion/walkers/assets/humanoid_CMU.xml
 dm_control/locomotion/walkers/assets/rodent.xml
 dm_control/locomotion/walkers/assets/rodent_walker_skin.skn
 dm_control/locomotion/walkers/initializers/__init__.py
+dm_control/mjcf/README.md
 dm_control/mjcf/__init__.py
 dm_control/mjcf/attribute.py
 dm_control/mjcf/attribute_test.py
@@ -189,6 +197,7 @@ dm_control/mjcf/test_assets/meshes/cube.msh
 dm_control/mjcf/test_assets/meshes/cube.stl
 dm_control/mjcf/test_assets/meshes/more_meshes/cube.stl
 dm_control/mjcf/test_assets/textures/deepmind.png
+dm_control/mujoco/README.md
 dm_control/mujoco/__init__.py
 dm_control/mujoco/engine.py
 dm_control/mujoco/engine_test.py
@@ -336,6 +345,7 @@ dm_control/mujoco/testing/assets/frames/humanoid_seed_0_camera_head_track_64x64_
 dm_control/mujoco/testing/assets/frames/humanoid_seed_0_camera_head_track_64x64_software/frame_017.png
 dm_control/mujoco/testing/assets/frames/humanoid_seed_0_camera_head_track_64x64_software/frame_018.png
 dm_control/mujoco/testing/assets/frames/humanoid_seed_0_camera_head_track_64x64_software/frame_019.png
+dm_control/mujoco/wrapper/README.md
 dm_control/mujoco/wrapper/__init__.py
 dm_control/mujoco/wrapper/core.py
 dm_control/mujoco/wrapper/core_test.py
@@ -352,6 +362,7 @@ dm_control/mujoco/wrapper/mjbindings/wrappers.py
 dm_control/rl/__init__.py
 dm_control/rl/control.py
 dm_control/rl/control_test.py
+dm_control/suite/README.md
 dm_control/suite/__init__.py
 dm_control/suite/acrobot.py
 dm_control/suite/acrobot.xml
@@ -397,7 +408,11 @@ dm_control/suite/common/materials.xml
 dm_control/suite/common/settings.py
 dm_control/suite/common/skybox.xml
 dm_control/suite/common/visual.xml
+dm_control/suite/demos/mocap_demo.py
 dm_control/suite/demos/zeros.amc
+dm_control/suite/tests/domains_test.py
+dm_control/suite/tests/loader_test.py
+dm_control/suite/tests/lqr_test.py
 dm_control/suite/utils/__init__.py
 dm_control/suite/utils/parse_amc.py
 dm_control/suite/utils/parse_amc_test.py
@@ -422,9 +437,11 @@ dm_control/utils/rewards.py
 dm_control/utils/rewards_test.py
 dm_control/utils/xml_tools.py
 dm_control/utils/xml_tools_test.py
+dm_control/viewer/README.md
 dm_control/viewer/__init__.py
 dm_control/viewer/application.py
 dm_control/viewer/application_test.py
+dm_control/viewer/policy.gif
 dm_control/viewer/renderer.py
 dm_control/viewer/renderer_test.py
 dm_control/viewer/runtime.py
