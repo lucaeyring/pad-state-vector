@@ -47,12 +47,9 @@ class DMCWrapper(core.Env):
         camera_id=0,
         frame_skip=1,
         environment_kwargs=None,
-        setting_kwargs=None,
         channels_first=True
     ):
         assert 'random' in task_kwargs, 'please specify a seed, for deterministic behaviour'
-        self._domain_name = domain_name
-        self._task_name = task_name
         self._from_pixels = from_pixels
         self._height = height
         self._width = width
@@ -66,8 +63,7 @@ class DMCWrapper(core.Env):
             task_name=task_name,
             task_kwargs=task_kwargs,
             visualize_reward=visualize_reward,
-            environment_kwargs=environment_kwargs,
-            setting_kwargs=setting_kwargs
+            environment_kwargs=environment_kwargs
         )
 
         # true and normalized action spaces

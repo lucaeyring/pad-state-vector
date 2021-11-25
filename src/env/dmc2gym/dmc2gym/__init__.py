@@ -14,18 +14,16 @@ def make(
         frame_skip=1,
         episode_length=1000,
         environment_kwargs=None,
-        setting_kwargs=None,
         time_limit=None,
         channels_first=True
 ):
-    env_id = 'dmc_%s_%s-v1' % (domain_name, task_name)
+    env_id = 'dmc_%s_%s_%s-v1' % (domain_name, task_name, seed)
 
     if from_pixels:
         assert not visualize_reward, 'cannot use visualize reward when learning from pixels'
 
     # shorten episode length
     max_episode_steps = (episode_length + frame_skip - 1) // frame_skip
-    time_limit = 1e6
 
     if not env_id in gym.envs.registry.env_specs:
         task_kwargs = {}
@@ -41,7 +39,6 @@ def make(
                 task_name=task_name,
                 task_kwargs=task_kwargs,
                 environment_kwargs=environment_kwargs,
-                setting_kwargs=setting_kwargs,
                 visualize_reward=visualize_reward,
                 from_pixels=from_pixels,
                 height=height,

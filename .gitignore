@@ -1,2 +1,6 @@
+# Custom
+src/env/dm_control_old/
+
+**/.DS_Store
 __pycache__/
 *.pyc
