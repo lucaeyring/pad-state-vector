@@ -18,13 +18,17 @@
 The root schema is provided as a module-level constant `schema.MUJOCO`.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import copy
 import os
 
 from dm_control.mjcf import attribute
 from lxml import etree
-
+import six
 from dm_control.utils import io as resources
 
 _SCHEMA_XML_PATH = os.path.join(os.path.dirname(__file__), 'schema.xml')
@@ -100,7 +104,7 @@ def _parse_element(element_xml):
 
   identifier = None
   namespace = None
-  for attribute_spec in attributes.values():
+  for attribute_spec in six.itervalues(attributes):
     if attribute_spec.type == attribute.Identifier:
       identifier = attribute_spec.name
       namespace = element_xml.get('namespace') or name
@@ -182,7 +186,7 @@ def collect_namespaces(root_spec):
   findable_namespaces = set()
   def update_namespaces_from_spec(spec):
     findable_namespaces.add(spec.namespace)
-    for child_spec in spec.children.values():
+    for child_spec in six.itervalues(spec.children):
       if child_spec is not spec:
         update_namespaces_from_spec(child_spec)
   update_namespaces_from_spec(root_spec)
@@ -241,21 +245,3 @@ def _attachment_frame_spec(is_world_attachment):
 
 ATTACHMENT_FRAME = _attachment_frame_spec(is_world_attachment=False)
 WORLD_ATTACHMENT_FRAME = _attachment_frame_spec(is_world_attachment=True)
-
-
-def override_schema(schema_xml_path):
-  """Override the schema with a custom xml.
-
-  This method updates several global variables and care should be taken not to
-  call it if the pre-update values have already been used.
-
-  Args:
-    schema_xml_path: Path to schema xml file.
-  """
-  global MUJOCO
-  global FINDABLE_NAMESPACES
-
-  MUJOCO = parse_schema(schema_xml_path)
-  FINDABLE_NAMESPACES = frozenset(
-      collect_namespaces(MUJOCO).union(_ADDITIONAL_FINDABLE_NAMESPACES))
-

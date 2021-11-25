@@ -15,6 +15,10 @@
 
 """Various helper functions and classes."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import ctypes
 import ctypes.util
 import functools
@@ -23,6 +27,7 @@ import platform
 import sys
 from dm_control import _render
 import numpy as np
+import six
 
 from dm_control.utils import io as resources
 
@@ -36,12 +41,13 @@ try:
 except KeyError:
   raise OSError("Unsupported platform: {}".format(_PLATFORM))
 
-# Environment variable that can be used to override the default path to the
-# MuJoCo shared library.
+# Environment variables that can be used to override the default paths to the
+# MuJoCo shared library and key file.
 ENV_MJLIB_PATH = "MJLIB_PATH"
+ENV_MJKEY_PATH = "MJKEY_PATH"
 
 
-MJLIB_NAME = "mujoco210"
+MJLIB_NAME = "mujoco200"
 
 
 def _get_shared_library_filename():
@@ -60,9 +66,10 @@ def _get_shared_library_filename():
   return "{}{}.{}".format(prefix, MJLIB_NAME, extension)
 
 
-DEFAULT_MJLIB_DIR = "~/.mujoco/mujoco210/bin"
+DEFAULT_MJLIB_DIR = "~/.mujoco/mujoco200_{}/bin".format(_PLATFORM_SUFFIX)
 DEFAULT_MJLIB_PATH = os.path.join(
     DEFAULT_MJLIB_DIR, _get_shared_library_filename())
+DEFAULT_MJKEY_PATH = "~/.mujoco/mjkey.txt"
 
 
 DEFAULT_ENCODING = sys.getdefaultencoding()
@@ -70,15 +77,17 @@ DEFAULT_ENCODING = sys.getdefaultencoding()
 
 def to_binary_string(s):
   """Convert text string to binary."""
-  if isinstance(s, bytes):
+  if isinstance(s, six.binary_type):
     return s
   return s.encode(DEFAULT_ENCODING)
 
 
 def to_native_string(s):
   """Convert a text or binary string to the native string format."""
-  if isinstance(s, bytes):
+  if six.PY3 and isinstance(s, six.binary_type):
     return s.decode(DEFAULT_ENCODING)
+  elif six.PY2 and isinstance(s, six.text_type):
+    return s.encode(DEFAULT_ENCODING)
   else:
     return s
 
@@ -100,11 +109,10 @@ def _maybe_load_linux_dynamic_deps(library_dir):
     else:
       libglew_path = ctypes.util.find_library("GLEW")
     ctypes.CDLL(libglew_path, ctypes.RTLD_GLOBAL)  # Also loads GL implicitly.
-# Google-internal libstdc++ loading.
+
 
 def get_mjlib():
   """Loads `libmujoco.so` and returns it as a `ctypes.CDLL` object."""
-  # Google-internal MuJoCo loading.
   try:
     # Use the MJLIB_PATH environment variable if it has been set.
     library_path = _get_full_path(os.environ[ENV_MJLIB_PATH])
@@ -119,7 +127,13 @@ def get_mjlib():
   return ctypes.cdll.LoadLibrary(library_path)
 
 
-class WrapperBase:
+def get_mjkey_path():
+  """Returns a path to the MuJoCo key file."""
+  raw_path = os.environ.get(ENV_MJKEY_PATH, DEFAULT_MJKEY_PATH)
+  return _get_full_path(raw_path)
+
+
+class WrapperBase(object):
   """Base class for wrappers that provide getters/setters for ctypes structs."""
 
   # This is needed so that the __del__ methods of MjModel and MjData can still
@@ -148,7 +162,7 @@ class CachedProperty(property):
   """A property that is evaluated only once per object instance."""
 
   def __init__(self, func, doc=None):
-    super().__init__(fget=func, doc=doc)
+    super(CachedProperty, self).__init__(fget=func, doc=doc)
     self._name = func.__name__
 
   def __get__(self, obj, cls):
@@ -254,16 +268,3 @@ def cast_func_to_c_void_p(func, cfunctype):
     wrapped_pyfunc = cfunctype(func)
     new_func_ptr = ctypes.cast(wrapped_pyfunc, ctypes.c_void_p)
   return new_func_ptr, wrapped_pyfunc
-
-
-def get_mjkey_path():
-  """Returns a path to the MuJoCo key file.
-
-  MuJoCo no longer requires an activation key. This function is left here for
-  the time being for backward-compatibility purposes it case it is being called
-  from external code. It will be removed with no further notice.
-
-  Returns:
-    Path to MuJoCo activation key file.
-  """
-  return _get_full_path(os.environ.get("MJKEY_PATH", "~/.mujoco/mjkey.txt"))

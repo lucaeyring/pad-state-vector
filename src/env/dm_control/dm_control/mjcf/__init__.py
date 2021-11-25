@@ -24,7 +24,6 @@ from dm_control.mjcf.constants import PREFIX_SEPARATOR
 from dm_control.mjcf.element import RootElement
 
 from dm_control.mjcf.export_with_assets import export_with_assets
-from dm_control.mjcf.export_with_assets_as_zip import export_with_assets_as_zip
 
 from dm_control.mjcf.parser import from_file
 from dm_control.mjcf.parser import from_path
@@ -32,7 +31,6 @@ from dm_control.mjcf.parser import from_xml_string
 
 from dm_control.mjcf.physics import Physics
 
-from dm_control.mjcf.traversal_utils import commit_defaults
 from dm_control.mjcf.traversal_utils import get_attachment_frame
 from dm_control.mjcf.traversal_utils import get_frame_freejoint
 from dm_control.mjcf.traversal_utils import get_frame_joints

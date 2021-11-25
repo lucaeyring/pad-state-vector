@@ -14,6 +14,10 @@
 # ============================================================================
 
 """Procedurally generated Swimmer domain."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -25,6 +29,7 @@ from dm_control.utils import containers
 from dm_control.utils import rewards
 from lxml import etree
 import numpy as np
+from six.moves import range
 
 _DEFAULT_TIME_LIMIT = 30
 _CONTROL_TIMESTEP = .03  # (Seconds)
@@ -169,7 +174,7 @@ class Swimmer(base.Task):
         integer seed for creating a new `RandomState`, or None to select a seed
         automatically (default).
     """
-    super().__init__(random=random)
+    super(Swimmer, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     """Sets the state of the environment at the start of each episode.
@@ -191,7 +196,7 @@ class Swimmer(base.Task):
     physics.named.model.light_pos['target_light', 'x'] = xpos
     physics.named.model.light_pos['target_light', 'y'] = ypos
 
-    super().initialize_episode(physics)
+    super(Swimmer, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns an observation of joint angles, body velocities and target."""

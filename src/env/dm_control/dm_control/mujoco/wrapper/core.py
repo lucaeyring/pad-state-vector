@@ -15,10 +15,13 @@
 
 """Main user-facing classes and utility functions for loading MuJoCo models."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import contextlib
 import ctypes
 import os
-import threading
 import weakref
 
 from absl import logging
@@ -30,8 +33,10 @@ from dm_control.mujoco.wrapper.mjbindings import functions
 from dm_control.mujoco.wrapper.mjbindings import mjlib
 from dm_control.mujoco.wrapper.mjbindings import types
 from dm_control.mujoco.wrapper.mjbindings import wrappers
-import numpy as np
 
+import six
+
+# Internal analytics import.
 # Unused internal import: resources.
 
 _NULL = b"\00"
@@ -46,10 +51,6 @@ _VFS_FILENAME_TOO_LONG = (
     "Filename length {length} exceeds {limit} character limit: {filename}")
 _INVALID_FONT_SCALE = ("`font_scale` must be one of {}, got {{}}."
                        .format(enums.mjtFontScale))
-
-_CONTACT_ID_OUT_OF_RANGE = (
-    "`contact_id` must be between 0 and {max_valid} (inclusive), got: {actual}."
-)
 
 # Global cache used to store finalizers for freeing ctypes pointers.
 # Contains {pointer_address: weakref_object} pairs.
@@ -66,7 +67,6 @@ if constants.mjVERSION_HEADER != mjlib.mj_version():
               "({1})".format(constants.mjVERSION_HEADER, mjlib.mj_version()))
 
 _REGISTERED = False
-_REGISTRATION_LOCK = threading.Lock()
 _ERROR_BUFSIZE = 1000
 
 # This is used to keep track of the `MJMODEL` pointer that was most recently
@@ -105,6 +105,29 @@ def enable_timer(enabled=True):
     set_callback("mjcb_time", time.time)
   else:
     set_callback("mjcb_time", None)
+
+
+def _maybe_register_license(path=None):
+  """Registers the MuJoCo license if not already registered.
+
+  Args:
+    path: Optional custom path to license key file.
+
+  Raises:
+    Error: If the license could not be registered.
+  """
+  global _REGISTERED
+  if not _REGISTERED:
+    if path is None:
+      path = util.get_mjkey_path()
+    result = mjlib.mj_activate(util.to_binary_string(path))
+    if result == 1:
+      _REGISTERED = True
+      # Internal analytics of mj_activate.
+    elif result == 0:
+      raise Error("Could not register license.")
+    else:
+      raise Error("Unknown registration error (code: {})".format(result))
 
 
 def _str2type(type_str):
@@ -192,7 +215,7 @@ def _temporary_vfs(filenames_and_contents):
   """
   vfs = types.MJVFS()
   mjlib.mj_defaultVFS(vfs)
-  for filename, contents in filenames_and_contents.items():
+  for filename, contents in six.iteritems(filenames_and_contents):
     if len(filename) > _MAX_VFS_FILENAME_CHARACTERS:
       raise ValueError(
           _VFS_FILENAME_TOO_LONG.format(
@@ -250,13 +273,6 @@ def _create_finalizer(ptr, free_func):
         return
       else:
         # Turn the address back into a pointer to be freed.
-        if ctypes.cast is None:
-          return
-          # `ctypes.cast` might be None if the interpreter is in the process of
-          # exiting. In this case it doesn't really matter whether or not we
-          # explicitly free the pointer, since any remaining pointers will be
-          # freed anyway when the process terminates. We bail out silently in
-          # order to avoid logging an unsightly (but harmless) error.
         temp_ptr = ctypes.cast(address, ptr_type)
         free_func(temp_ptr)
         logging.debug("Freed %s at %x", ptr_type.__name__, address)
@@ -324,6 +340,8 @@ def _get_model_ptr_from_xml(xml_path=None, xml_string=None, assets=None):
     raise TypeError(
         "Only one of `xml_path` or `xml_string` may be specified.")
 
+  _maybe_register_license()
+
   if xml_string is not None:
     assets = {} if assets is None else assets.copy()
     # Ensure that the fake XML filename doesn't overwrite an existing asset.
@@ -389,6 +407,8 @@ def _get_model_ptr_from_binary(binary_path=None, byte_string=None):
     raise TypeError(
         "Only one of `byte_string` or `binary_path` may be specified.")
 
+  _maybe_register_license()
+
   if byte_string is not None:
     with _temporary_vfs({_FAKE_BINARY_FILENAME: byte_string}) as vfs:
       ptr = mjlib.mj_loadModel(_FAKE_BINARY_FILENAME, vfs)
@@ -419,7 +439,7 @@ class MjModel(wrappers.MjModelWrapper):
     Args:
       model_ptr: A `ctypes.POINTER` to an `mjbindings.types.MJMODEL` instance.
     """
-    super().__init__(ptr=model_ptr)
+    super(MjModel, self).__init__(ptr=model_ptr)
 
   def __getstate__(self):
     # All of MjModel's state is assumed to reside within the MuJoCo C struct.
@@ -560,7 +580,7 @@ class MjModel(wrappers.MjModelWrapper):
     old_bitmask = self.opt.disableflags
     new_bitmask = old_bitmask
     for flag in flags:
-      if isinstance(flag, str):
+      if isinstance(flag, six.string_types):
         try:
           field_name = "mjDSBL_" + flag.upper()
           bitmask = getattr(enums.mjtDisableBit, field_name)
@@ -611,7 +631,7 @@ class MjData(wrappers.MjDataWrapper):
     # Free resources when the ctypes pointer is garbage collected.
     _create_finalizer(data_ptr, mjlib.mj_deleteData)
 
-    super().__init__(data_ptr, model)
+    super(MjData, self).__init__(data_ptr, model)
 
   def __getstate__(self):
     # Note: we can replace this once a `saveData` MJAPI function exists.
@@ -635,10 +655,10 @@ class MjData(wrappers.MjDataWrapper):
     # Replace this once a `loadData` MJAPI function exists.
     self._model, static_fields, buffer_contents = state_tuple
     self.__init__(self.model)
-    for name, contents in static_fields["struct_fields"].items():
+    for name, contents in six.iteritems(static_fields["struct_fields"]):
       getattr(self, name)[:] = contents
 
-    for name, value in static_fields["scalar_fields"].items():
+    for name, value in six.iteritems(static_fields["scalar_fields"]):
       # Array and scalar values must be handled separately.
       try:
         getattr(self, name)[:] = value
@@ -667,54 +687,6 @@ class MjData(wrappers.MjDataWrapper):
     _finalize(self._ptr)
     del self._ptr
 
-  def object_velocity(self, object_id, object_type, local_frame=False):
-    """Returns the 6D velocity (linear, angular) of a MuJoCo object.
-
-    Args:
-      object_id: Object identifier. Can be either integer ID or String name.
-      object_type: The type of the object. Can be either a lowercase string
-        (e.g. 'body', 'geom') or an `mjtObj` enum value.
-      local_frame: Boolean specifiying whether the velocity is given in the
-        global (worldbody), or local (object) frame.
-
-    Returns:
-      2x3 array with stacked (linear_velocity, angular_velocity)
-
-    Raises:
-      Error: If `object_type` is not a valid MuJoCo object type, or if no object
-        with the corresponding name and type was found.
-    """
-    if not isinstance(object_type, int):
-      object_type = _str2type(object_type)
-    velocity = np.empty(6, dtype=np.float64)
-    if not isinstance(object_id, int):
-      object_id = self.model.name2id(object_id, object_type)
-    mjlib.mj_objectVelocity(self.model.ptr, self.ptr,
-                            object_type, object_id, velocity, local_frame)
-    #  MuJoCo returns velocities in (angular, linear) order, which we flip here.
-    return velocity.reshape(2, 3)[::-1]
-
-  def contact_force(self, contact_id):
-    """Returns the wrench of a contact as a 2 x 3 array of (forces, torques).
-
-    Args:
-      contact_id: Integer, the index of the contact within the contact buffer
-        (`self.contact`).
-
-    Returns:
-      2x3 array with stacked (force, torque). Note that the order of dimensions
-        is (normal, tangent, tangent), in the contact's frame.
-
-    Raises:
-      ValueError: If `contact_id` is negative or bigger than ncon-1.
-    """
-    if not 0 <= contact_id < self.ncon:
-      raise ValueError(_CONTACT_ID_OUT_OF_RANGE
-                       .format(max_valid=self.ncon-1, actual=contact_id))
-    wrench = np.empty(6, dtype=np.float64)
-    mjlib.mj_contactForce(self.model.ptr, self.ptr, contact_id, wrench)
-    return wrench.reshape(2, 3)
-
   @property
   def model(self):
     """The parent MjModel for this MjData instance."""
@@ -724,7 +696,7 @@ class MjData(wrappers.MjDataWrapper):
   def _contact_buffer(self):
     """Cached structured array containing the full contact buffer."""
     contact_array = util.buf_to_npy(
-        super().contact, shape=(self._model.nconmax,))
+        super(MjData, self).contact, shape=(self._model.nconmax,))
     return contact_array
 
   @property
@@ -741,7 +713,7 @@ class MjvCamera(wrappers.MjvCameraWrapper):
   def __init__(self):
     ptr = ctypes.pointer(types.MJVCAMERA())
     mjlib.mjv_defaultCamera(ptr)
-    super().__init__(ptr)
+    super(MjvCamera, self).__init__(ptr)
 
 
 class MjvOption(wrappers.MjvOptionWrapper):
@@ -751,7 +723,7 @@ class MjvOption(wrappers.MjvOptionWrapper):
     mjlib.mjv_defaultOption(ptr)
     # Do not visualize rangefinder lines by default:
     ptr.contents.flags[enums.mjtVisFlag.mjVIS_RANGEFINDER] = False
-    super().__init__(ptr)
+    super(MjvOption, self).__init__(ptr)
 
 
 class UnmanagedMjrContext(wrappers.MjrContextWrapper):
@@ -765,7 +737,7 @@ class UnmanagedMjrContext(wrappers.MjrContextWrapper):
   def __init__(self):
     ptr = ctypes.pointer(types.MJRCONTEXT())
     mjlib.mjr_defaultContext(ptr)
-    super().__init__(ptr)
+    super(UnmanagedMjrContext, self).__init__(ptr)
 
 
 class MjrContext(wrappers.MjrContextWrapper):  # pylint: disable=missing-docstring
@@ -805,7 +777,7 @@ class MjrContext(wrappers.MjrContextWrapper):  # pylint: disable=missing-docstri
 
     _create_finalizer(ptr, finalize_mjr_context)
 
-    super().__init__(ptr)
+    super(MjrContext, self).__init__(ptr)
 
   def free(self):
     """Frees the native resources held by this MjrContext.
@@ -818,55 +790,18 @@ class MjrContext(wrappers.MjrContextWrapper):  # pylint: disable=missing-docstri
     del self._ptr
 
 
-# A mapping from human-readable short names to mjtRndFlag enum values, i.e.
-# {'shadow': mjtRndFlag.mjRND_SHADOW, 'fog': mjtRndFlag.mjRND_FOG, ...}
-_NAME_TO_RENDER_FLAG_ENUM_VALUE = {
-    name[len("mjRND_"):].lower(): getattr(enums.mjtRndFlag, name)
-    for name in enums.mjtRndFlag._fields[:-1]  # Exclude mjRND_NUMRNDFLAG entry.
-}
-
-
-def _estimate_max_renderable_geoms(model):
-  """Estimates the maximum number of renderable geoms for a given model."""
-  # Only one type of object frame can be rendered at once.
-  max_nframes = max(
-      [model.nbody, model.ngeom, model.nsite, model.ncam, model.nlight])
-  # This is probably an underestimate, but it is unlikely that all possible
-  # rendering options will be enabled simultaneously, or that all renderable
-  # geoms will be present within the viewing frustum at the same time.
-  return (
-      3 * max_nframes +  # 1 geom per axis for each frame.
-      4 * model.ngeom +  # geom itself + contacts + 2 * split contact forces.
-      3 * model.nbody +  # COM + inertia box + perturbation force.
-      model.nsite +
-      model.ntendon +
-      model.njnt +
-      model.nu +
-      model.nskin +
-      model.ncam +
-      model.nlight)
-
-
 class MjvScene(wrappers.MjvSceneWrapper):  # pylint: disable=missing-docstring
 
-  def __init__(self, model=None, max_geom=None):
+  def __init__(self, model=None, max_geom=1000):
     """Initializes a new `MjvScene` instance.
 
     Args:
       model: (optional) An `MjModel` instance.
       max_geom: (optional) An integer specifying the maximum number of geoms
-        that can be represented in the scene. If None, this will be chosen
-        automatically based on `model`.
+        that can be represented in the scene.
     """
     model_ptr = model.ptr if model is not None else None
     scene_ptr = ctypes.pointer(types.MJVSCENE())
-
-    if max_geom is None:
-      if model is None:
-        max_renderable_geoms = 0
-      else:
-        max_renderable_geoms = _estimate_max_renderable_geoms(model)
-      max_geom = max(1000, max_renderable_geoms)
 
     # Allocate and initialize resources for the abstract scene.
     mjlib.mjv_makeScene(model_ptr, scene_ptr, max_geom)
@@ -874,33 +809,7 @@ class MjvScene(wrappers.MjvSceneWrapper):  # pylint: disable=missing-docstring
     # Free resources when the ctypes pointer is garbage collected.
     _create_finalizer(scene_ptr, mjlib.mjv_freeScene)
 
-    super().__init__(scene_ptr)
-
-  @contextlib.contextmanager
-  def override_flags(self, overrides):
-    """Context manager for temporarily overriding rendering flags.
-
-    Args:
-      overrides: A mapping specifying rendering flags to override. The keys can
-        be either lowercase strings or `mjtRndFlag` enum values, and the values
-        are the overridden flag values, e.g. `{'wireframe': True}` or
-        `{enums.mjtRndFlag.mjRND_WIREFRAME: True}`. See `enums.mjtRndFlag` for
-        the set of valid flags.
-
-    Yields:
-      None
-    """
-    if not overrides:
-      yield
-    else:
-      original_flags = self.flags.copy()
-      for key, value in overrides.items():
-        index = _NAME_TO_RENDER_FLAG_ENUM_VALUE.get(key, key)
-        self.flags[index] = value
-      try:
-        yield
-      finally:
-        np.copyto(self.flags, original_flags)
+    super(MjvScene, self).__init__(scene_ptr)
 
   def free(self):
     """Frees the native resources held by this MjvScene.
@@ -915,7 +824,7 @@ class MjvScene(wrappers.MjvSceneWrapper):  # pylint: disable=missing-docstring
   @util.CachedProperty
   def _geoms_buffer(self):
     """Cached recarray containing the full geom buffer."""
-    return util.buf_to_npy(super().geoms, shape=(self.maxgeom,))
+    return util.buf_to_npy(super(MjvScene, self).geoms, shape=(self.maxgeom,))
 
   @property
   def geoms(self):
@@ -928,7 +837,7 @@ class MjvPerturb(wrappers.MjvPerturbWrapper):
   def __init__(self):
     ptr = ctypes.pointer(types.MJVPERTURB())
     mjlib.mjv_defaultPerturb(ptr)
-    super().__init__(ptr)
+    super(MjvPerturb, self).__init__(ptr)
 
 
 class MjvFigure(wrappers.MjvFigureWrapper):
@@ -936,4 +845,4 @@ class MjvFigure(wrappers.MjvFigureWrapper):
   def __init__(self):
     ptr = ctypes.pointer(types.MJVFIGURE())
     mjlib.mjv_defaultFigure(ptr)
-    super().__init__(ptr)
+    super(MjvFigure, self).__init__(ptr)

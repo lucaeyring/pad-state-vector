@@ -14,6 +14,10 @@
 # ============================================================================
 """Windowing system that uses GLFW library."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import functools
 from dm_control import _render
 from dm_control._render import glfw_renderer
@@ -42,7 +46,8 @@ class DoubleBufferedGlfwContext(glfw_renderer.GLFWContext):
 
   def __init__(self, width, height, title):
     self._title = title
-    super().__init__(max_width=width, max_height=height)
+    super(DoubleBufferedGlfwContext, self).__init__(max_width=width,
+                                                    max_height=height)
 
   @_check_valid_backend
   def _platform_init(self, width, height):
@@ -69,7 +74,7 @@ class GlfwKeyboard(base.InputEventsProcessor):
   """
 
   def __init__(self, context):
-    super().__init__()
+    super(GlfwKeyboard, self).__init__()
     with context.make_current() as ctx:
       ctx.call(glfw.set_key_callback, context.window, self._handle_key_event)
     self.on_key = util.QuietSet()
@@ -107,7 +112,7 @@ class GlfwMouse(base.InputEventsProcessor):
   """
 
   def __init__(self, context):
-    super().__init__()
+    super(GlfwMouse, self).__init__()
     self.on_move = util.QuietSet()
     self.on_click = util.QuietSet()
     self.on_double_click = util.QuietSet()
@@ -161,7 +166,7 @@ class GlfwMouse(base.InputEventsProcessor):
     self.add_event(self.on_scroll, y_offset)
 
 
-class GlfwWindow:
+class GlfwWindow(object):
   """A GLFW based application window.
 
   Attributes:
@@ -184,7 +189,7 @@ class GlfwWindow:
     Raises:
       RuntimeError: If GLFW initialization or window initialization fails.
     """
-    super().__init__()
+    super(GlfwWindow, self).__init__()
     self._context = context or DoubleBufferedGlfwContext(width, height, title)
 
     if not self._context.window:

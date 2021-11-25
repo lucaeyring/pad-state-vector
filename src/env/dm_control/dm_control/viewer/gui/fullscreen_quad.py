@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-
+# Lint as: python3
 """OpenGL utility for rendering numpy arrays as images on a quad surface."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import ctypes
+
 import numpy as np
 from OpenGL import GL
 from OpenGL.GL import shaders
@@ -55,7 +60,7 @@ _VAR_UV = 'uv'
 _VAR_TEXTURE_SAMPLER = 'tex'
 
 
-class FullscreenQuadRenderer:
+class FullscreenQuadRenderer(object):
   """Renders pixmaps on a fullscreen quad using OpenGL."""
 
   def __init__(self):

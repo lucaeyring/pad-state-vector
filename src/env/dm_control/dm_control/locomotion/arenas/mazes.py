@@ -14,6 +14,10 @@
 # ============================================================================
 """Maze-based arenas."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import string
 
 from absl import logging
@@ -23,6 +27,9 @@ from dm_control.locomotion.arenas import assets as locomotion_arenas_assets
 from dm_control.locomotion.arenas import covering
 import labmaze
 import numpy as np
+import six
+from six.moves import range
+from six.moves import zip
 
 
 # Put all "actual" wall geoms in a separate group since they are not rendered.
@@ -63,7 +70,7 @@ class MazeWithTargets(composer.Arena):
       aesthetic: option to adjust the material properties and skybox
       name: (optional) A string, the name of this arena.
     """
-    super()._build(name)
+    super(MazeWithTargets, self)._build(name)
     self._maze = maze
     self._xy_scale = xy_scale
     self._z_height = z_height
@@ -97,7 +104,7 @@ class MazeWithTargets(composer.Arena):
           self.attach(texture_provider)
         self._wall_textures = {
             wall_char: texture_provider.textures
-            for wall_char, texture_provider in wall_textures.items()
+            for wall_char, texture_provider in six.iteritems(wall_textures)
         }
       else:
         self.attach(wall_textures)
@@ -203,9 +210,8 @@ class MazeWithTargets(composer.Arena):
     """The grid-coordinate position at which the agent should be spawned."""
     return self._spawn_grid_positions
 
-  def regenerate(self, random_state=np.random.RandomState()):
+  def regenerate(self):
     """Generates a new maze layout."""
-    del random_state
     self._maze.regenerate()
     logging.debug('GENERATED MAZE:\n%s', self._maze.entity_layer)
     self._find_spawn_and_target_positions()
@@ -228,7 +234,7 @@ class MazeWithTargets(composer.Arena):
 
     self._current_wall_texture = {
         wall_char: np.random.choice(wall_textures)
-        for wall_char, wall_textures in self._wall_textures.items()
+        for wall_char, wall_textures in six.iteritems(self._wall_textures)
     }
 
     for wall_char in self._wall_textures:
@@ -439,7 +445,7 @@ class RandomMazeWithTargets(MazeWithTargets):
       name: (optional) A string, the name of this arena.
     """
     random_seed = np.random.randint(2147483648)  # 2**31
-    super()._build(
+    super(RandomMazeWithTargets, self)._build(
         maze=labmaze.RandomMaze(
             height=y_cells,
             width=x_cells,

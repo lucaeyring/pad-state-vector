@@ -14,12 +14,16 @@
 # ============================================================================
 """Escape locomotion tasks."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from dm_control import composer
 from dm_control import mjcf
 from dm_control.composer.observation import observable as base_observable
 from dm_control.rl import control
 from dm_control.utils import rewards
+
 import numpy as np
 
 # Constants related to terrain generation.
@@ -100,7 +104,7 @@ class Escape(composer.Task):
     self._arena.mjcf_model.visual.map.zfar = 50.
 
   def initialize_episode(self, physics, random_state):
-    super().initialize_episode(physics, random_state)
+    super(Escape, self).initialize_episode(physics, random_state)
 
     # Initial configuration.
     orientation = random_state.randn(4)

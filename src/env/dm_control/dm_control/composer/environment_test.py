@@ -15,6 +15,11 @@
 
 """Tests for dm_control.composer.environment."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control import composer
@@ -23,13 +28,14 @@ from dm_control.composer.observation import observable
 import dm_env
 import mock
 import numpy as np
+from six.moves import range
 
 
 class DummyTask(composer.NullTask):
 
   def __init__(self):
     null_entity = composer.ModelWrapperEntity(mjcf.RootElement())
-    super().__init__(null_entity)
+    super(DummyTask, self).__init__(null_entity)
 
   @property
   def task_observables(self):
@@ -41,7 +47,7 @@ class DummyTask(composer.NullTask):
 class DummyTaskWithResetFailures(DummyTask):
 
   def __init__(self, num_reset_failures):
-    super().__init__()
+    super(DummyTaskWithResetFailures, self).__init__()
     self.num_reset_failures = num_reset_failures
     self.reset_counter = 0
 

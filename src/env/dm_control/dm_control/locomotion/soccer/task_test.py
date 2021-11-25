@@ -15,17 +15,23 @@
 
 """Tests for locomotion.tasks.soccer."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import unittest
+# Internal dependencies.
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control import composer
 from dm_control import mjcf
 from dm_control.locomotion import soccer
-from dm_control.locomotion.soccer import camera
 from dm_control.locomotion.soccer import initializers
 from dm_control.mujoco.wrapper import mjbindings
 import numpy as np
+from six.moves import range
+from six.moves import zip
 
 RGBA_BLUE = [.1, .1, .8, 1.]
 RGBA_RED = [.8, .1, .1, 1.]
@@ -418,31 +424,6 @@ class TaskTest(parameterized.TestCase):
 
     self.assertEqual(timestep.discount, expected_terminal_discount)
 
-  @parameterized.named_parameters(("reset_only", False), ("step", True))
-  def test_render(self, take_step):
-    height = 100
-    width = 150
-    tracking_cameras = []
-    for min_distance in [1, 1, 2]:
-      tracking_cameras.append(
-          camera.MultiplayerTrackingCamera(
-              min_distance=min_distance,
-              distance_factor=1,
-              smoothing_update_speed=0.1,
-              width=width,
-              height=height,
-          ))
-    env = _env(_home_team(1) + _away_team(1), tracking_cameras=tracking_cameras)
-    env.reset()
-    if take_step:
-      actions = [np.zeros(s.shape, s.dtype) for s in env.action_spec()]
-      env.step(actions)
-    rendered_frames = [cam.render() for cam in tracking_cameras]
-    for frame in rendered_frames:
-      assert frame.shape == (height, width, 3)
-    self.assertTrue(np.array_equal(rendered_frames[0], rendered_frames[1]))
-    self.assertFalse(np.array_equal(rendered_frames[1], rendered_frames[2]))
-
 
 class UniformInitializerTest(parameterized.TestCase):
 
@@ -557,63 +538,6 @@ class UniformInitializerTest(parameterized.TestCase):
     # The initializer should set the ball velocity to zero.
     ball_velocity = env.physics.bind(ball_root_joint).qvel
     np.testing.assert_array_equal(ball_velocity, 0.)
-
-
-class _ScoringInitializer(soccer.Initializer):
-  """Initialize the ball for home team to repeatedly score goals."""
-
-  def __init__(self):
-    self._num_calls = 0
-
-  @property
-  def num_calls(self):
-    return self._num_calls
-
-  def __call__(self, task, physics, random_state):
-    # Initialize `ball` along the y-axis with a positive y-velocity.
-    task.ball.set_pose(physics, [2.0, 0.0, 1.5])
-    task.ball.set_velocity(
-        physics, velocity=[100.0, 0.0, 0.0], angular_velocity=0.)
-    for i, player in enumerate(task.players):
-      player.walker.reinitialize_pose(physics, random_state)
-      (_, _, z), quat = player.walker.get_pose(physics)
-      player.walker.set_pose(physics, [-i * 5, 0.0, z], quat)
-      player.walker.set_velocity(physics, velocity=0., angular_velocity=0.)
-
-    self._num_calls += 1
-
-
-class MultiturnTaskTest(parameterized.TestCase):
-
-  def test_multiple_goals(self):
-    initializer = _ScoringInitializer()
-    time_limit = 1.0
-    control_timestep = 0.025
-    env = composer.Environment(
-        task=soccer.MultiturnTask(
-            players=_home_team(1) + _away_team(1),
-            arena=soccer.Pitch((20, 15), field_box=True),  # disable throw-in.
-            initializer=initializer,
-            control_timestep=control_timestep),
-        time_limit=time_limit)
-
-    timestep = env.reset()
-    num_steps = 0
-    rewards = [np.zeros(s.shape, s.dtype) for s in env.reward_spec()]
-    while not timestep.last():
-      timestep = env.step([spec.generate_value() for spec in env.action_spec()])
-      for reward, r_t in zip(rewards, timestep.reward):
-        reward += r_t
-      num_steps += 1
-    self.assertEqual(num_steps, time_limit / control_timestep)
-
-    num_scores = initializer.num_calls - 1  # discard initialization.
-    self.assertEqual(num_scores, 6)
-    self.assertEqual(rewards, [
-        np.full((), num_scores, np.float32),
-        np.full((), -num_scores, np.float32)
-    ])
-
 
 if __name__ == "__main__":
   absltest.main()

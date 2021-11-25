@@ -15,9 +15,15 @@
 
 """Tests for observation.observation_updater."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import itertools
 import math
+
+# Internal dependencies.
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -26,23 +32,26 @@ from dm_control.composer.observation import observable
 from dm_control.composer.observation import updater
 from dm_env import specs
 import numpy as np
+import six
+from six.moves import range
 
 
-class DeterministicSequence:
+class DeterministicSequence(object):
 
   def __init__(self, sequence):
     self._iter = itertools.cycle(sequence)
 
   def __call__(self, random_state=None):
     del random_state  # unused
-    return next(self._iter)
+    return six.next(self._iter)
 
 
 class BoundedGeneric(observable.Generic):
 
   def __init__(self, raw_observation_callable, minimum, maximum, **kwargs):
-    super().__init__(
-        raw_observation_callable=raw_observation_callable, **kwargs)
+    super(BoundedGeneric, self).__init__(
+        raw_observation_callable=raw_observation_callable,
+        **kwargs)
     self._bounds = (minimum, maximum)
 
   @property
@@ -133,7 +142,8 @@ class UpdaterTest(parameterized.TestCase):
     for actual_dict, expected_dict in zip(actual_values, expected_values):
       self.assertIs(type(actual_dict), type(expected_dict))
       self.assertLen(actual_dict, len(expected_dict))
-      for actual, expected in zip(actual_dict.items(), expected_dict.items()):
+      for actual, expected in zip(six.iteritems(actual_dict),
+                                  six.iteritems(expected_dict)):
         actual_name, actual_value = actual
         expected_name, expected_value = expected
         self.assertEqual(actual_name, expected_name)
@@ -152,7 +162,7 @@ class UpdaterTest(parameterized.TestCase):
     physics.observables['sqrt'] = observable.Generic(
         fake_physics.FakePhysics.sqrt, buffer_size=3)
 
-    for obs in physics.observables.values():
+    for obs in six.itervalues(physics.observables):
       obs.enabled = True
 
     observation_updater = updater.Updater(physics.observables)
@@ -163,23 +173,21 @@ class UpdaterTest(parameterized.TestCase):
     self.assertCorrectSpec(spec['matrix'], (4, 2, 3), np.int, 'matrix')
     self.assertCorrectSpec(spec['sqrt'], (3,), np.float, 'sqrt')
 
-  @parameterized.parameters(True, False)
-  def testObservation(self, pad_with_initial_value):
+  def testObservation(self):
     physics = fake_physics.FakePhysics()
     physics.observables['repeated'].buffer_size = 5
     physics.observables['matrix'].delay = 1
-    physics.observables['sqrt_plus_one'] = observable.Generic(
-        fake_physics.FakePhysics.sqrt_plus_one, update_interval=7,
+    physics.observables['sqrt'] = observable.Generic(
+        fake_physics.FakePhysics.sqrt, update_interval=7,
         buffer_size=3, delay=2)
-    for obs in physics.observables.values():
+    for obs in six.itervalues(physics.observables):
       obs.enabled = True
     with physics.reset_context():
       pass
 
     physics_steps_per_control_step = 5
     observation_updater = updater.Updater(
-        physics.observables, physics_steps_per_control_step,
-        pad_with_initial_value=pad_with_initial_value)
+        physics.observables, physics_steps_per_control_step)
     observation_updater.reset(physics=physics, random_state=None)
 
     for control_step in range(0, 200):
@@ -215,13 +223,8 @@ class UpdaterTest(parameterized.TestCase):
 
         # Arrays with expected shapes, filled with expected default values.
         expected_value_spec = observation_updater.observation_spec()[obs_name]
-        if pad_with_initial_value:
-          expected_values = np.full(shape=expected_value_spec.shape,
-                                    fill_value=expected_callable(0),
-                                    dtype=expected_value_spec.dtype)
-        else:
-          expected_values = np.zeros(shape=expected_value_spec.shape,
-                                     dtype=expected_value_spec.dtype)
+        expected_values = np.zeros(shape=expected_value_spec.shape,
+                                   dtype=expected_value_spec.dtype)
 
         # The arrays are filled from right to left, such that the most recent
         # entry is the rightmost one, and any padding is on the left.
@@ -233,7 +236,7 @@ class UpdaterTest(parameterized.TestCase):
       assert_correct_buffer('twice', lambda x: 2*x)
       assert_correct_buffer('matrix', lambda x: [[x]*3]*2)
       assert_correct_buffer('repeated', lambda x: [x, x])
-      assert_correct_buffer('sqrt_plus_one', lambda x: np.sqrt(x) + 1)
+      assert_correct_buffer('sqrt', np.sqrt)
 
   def testVariableRatesAndDelays(self):
     physics = fake_physics.FakePhysics()

@@ -15,9 +15,15 @@
 
 """Tests for dm_control.utils.containers."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control.utils import containers
+import six
 
 
 class TaggedTaskTest(parameterized.TestCase):
@@ -118,7 +124,7 @@ class TaggedTaskTest(parameterized.TestCase):
     # pylint: enable=unused-variable
 
     result = tasks.tagged(*query)
-    self.assertSetEqual(frozenset(result.keys()), expected_keys)
+    self.assertSetEqual(frozenset(six.viewkeys(result)), expected_keys)
 
 
 if __name__ == '__main__':

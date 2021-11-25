@@ -1,4 +1,4 @@
-# Copyright 2020 The dm_control Authors.
+# Copyright 2019 The dm_control Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +14,4 @@
 # ============================================================================
 """Walkers for Locomotion tasks."""
 
-from dm_control.locomotion.walkers.ant import Ant
-from dm_control.locomotion.walkers.cmu_humanoid import CMUHumanoidPositionControlled
-from dm_control.locomotion.walkers.cmu_humanoid import CMUHumanoidPositionControlledV2020
-# Import removed.
-from dm_control.locomotion.walkers.jumping_ball import JumpingBallWithHead
-from dm_control.locomotion.walkers.jumping_ball import RollingBallWithHead
 from dm_control.locomotion.walkers.rodent import Rat

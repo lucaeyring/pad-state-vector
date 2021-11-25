@@ -15,11 +15,15 @@
 
 """Tests for core.py."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import ctypes
 import gc
 import os
-import pickle
 
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control import _render
@@ -29,6 +33,9 @@ from dm_control.mujoco.wrapper import mjbindings
 from dm_control.mujoco.wrapper.mjbindings import enums
 import mock
 import numpy as np
+import six
+from six.moves import cPickle
+from six.moves import range
 
 mjlib = mjbindings.mjlib
 
@@ -51,7 +58,7 @@ if not os.path.exists(OUT_DIR):
 class CoreTest(parameterized.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(CoreTest, self).setUp()
     self.model = core.MjModel.from_xml_path(HUMANOID_XML_PATH)
     self.data = core.MjData(self.model)
 
@@ -182,7 +189,7 @@ class CoreTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ("_copy", lambda x: x.copy()),
-      ("_pickle_unpickle", lambda x: pickle.loads(pickle.dumps(x))),)
+      ("_pickle_unpickle", lambda x: cPickle.loads(cPickle.dumps(x))),)
   def testCopyOrPickleModel(self, func):
     timestep = 0.12345
     self.model.opt.timestep = timestep
@@ -195,7 +202,7 @@ class CoreTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ("_copy", lambda x: x.copy()),
-      ("_pickle_unpickle", lambda x: pickle.loads(pickle.dumps(x))),)
+      ("_pickle_unpickle", lambda x: cPickle.loads(cPickle.dumps(x))),)
   def testCopyOrPickleData(self, func):
     for _ in range(10):
       mjlib.mj_step(self.model.ptr, self.data.ptr)
@@ -210,7 +217,7 @@ class CoreTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ("_copy", lambda x: x.copy()),
-      ("_pickle_unpickle", lambda x: pickle.loads(pickle.dumps(x))),)
+      ("_pickle_unpickle", lambda x: cPickle.loads(cPickle.dumps(x))),)
   def testCopyOrPickleStructs(self, func):
     for _ in range(10):
       mjlib.mj_step(self.model.ptr, self.data.ptr)
@@ -235,9 +242,9 @@ class CoreTest(parameterized.TestCase):
     self.assertEqual(name, output_name)
 
   def testNamesIdsExceptions(self):
-    with self.assertRaisesRegex(core.Error, "does not exist"):
+    with six.assertRaisesRegex(self, core.Error, "does not exist"):
       self.model.name2id("nonexistent_body_name", "body")
-    with self.assertRaisesRegex(core.Error, "is not a valid object type"):
+    with six.assertRaisesRegex(self, core.Error, "is not a valid object type"):
       self.model.name2id("right_foot", "nonexistent_type_name")
 
   def testNamelessObject(self):
@@ -248,13 +255,16 @@ class CoreTest(parameterized.TestCase):
   def testWarningCallback(self):
     self.data.qpos[0] = np.inf
     with mock.patch.object(core, "logging") as mock_logging:
-      mjlib.mju_warning(b"some warning message")
-    mock_logging.warning.assert_called_once_with("some warning message")
+      mjlib.mj_step(self.model.ptr, self.data.ptr)
+    mock_logging.warning.assert_called_once_with(
+        "Nan, Inf or huge value in QPOS at DOF 0. The simulation is unstable. "
+        "Time = 0.0000.")
 
   def testErrorCallback(self):
     with mock.patch.object(core, "logging") as mock_logging:
-      mjlib.mju_error(b"some error message")
-    mock_logging.fatal.assert_called_once_with("some error message")
+      mjlib.mj_activate(b"nonexistent_activation_key")
+    mock_logging.fatal.assert_called_once_with(
+        "Could not open activation key file nonexistent_activation_key")
 
   def testSingleCallbackContext(self):
 
@@ -364,11 +374,11 @@ class CoreTest(parameterized.TestCase):
     self.assertLess(data.qvel[0], -0.1)
 
   def testDisableFlagsExceptions(self):
-    with self.assertRaisesRegex(ValueError, "not a valid flag name"):
+    with six.assertRaisesRegex(self, ValueError, "not a valid flag name"):
       with self.model.disable("invalid_flag_name"):
         pass
-    with self.assertRaisesRegex(
-        ValueError, "not a value in `enums.mjtDisableBit`"):
+    with six.assertRaisesRegex(self, ValueError,
+                               "not a value in `enums.mjtDisableBit`"):
       with self.model.disable(-99):
         pass
 
@@ -401,130 +411,6 @@ class CoreTest(parameterized.TestCase):
       # Explicit freeing should not break any automatic GC triggered later.
       del wrapper
       gc.collect()
-
-  @parameterized.parameters(
-      # The tip is .5 meters from the cart so we expect its horizontal velocity
-      # to be 1m/s + .5m*1rad/s = 1.5m/s.
-      dict(
-          qpos=[0., 0.],  # Pole pointing upwards.
-          qvel=[1., 1.],
-          expected_linvel=[1.5, 0., 0.],
-          expected_angvel=[0., 1., 0.],
-      ),
-      # For the same velocities but with the pole pointing down, we expect the
-      # velocities to cancel, making the global tip velocity now equal to
-      # 1m/s - 0.5m*1rad/s = 0.5m/s.
-      dict(
-          qpos=[0., np.pi],  # Pole pointing downwards.
-          qvel=[1., 1.],
-          expected_linvel=[0.5, 0., 0.],
-          expected_angvel=[0., 1., 0.],
-      ),
-      # In the site's local frame, which is now flipped w.r.t the world, the
-      # velocity is in the negative x direction.
-      dict(
-          qpos=[0., np.pi],  # Pole pointing downwards.
-          qvel=[1., 1.],
-          expected_linvel=[-0.5, 0., 0.],
-          expected_angvel=[0., 1., 0.],
-          local=True,
-      ),
-  )
-  def testObjectVelocity(
-      self, qpos, qvel, expected_linvel, expected_angvel, local=False):
-    cartpole = """
-    <mujoco>
-      <worldbody>
-        <body name='cart'>
-          <joint type='slide' axis='1 0 0'/>
-          <geom name='cart' type='box' size='0.2 0.2 0.2'/>
-          <body name='pole'>
-            <joint name='hinge' type='hinge' axis='0 1 0'/>
-            <geom name='mass' pos='0 0 .5' size='0.04'/>
-          </body>
-        </body>
-      </worldbody>
-    </mujoco>
-    """
-    model = core.MjModel.from_xml_string(cartpole)
-    data = core.MjData(model)
-    data.qpos[:] = qpos
-    data.qvel[:] = qvel
-    mjlib.mj_step1(model.ptr, data.ptr)
-    linvel, angvel = data.object_velocity("mass", "geom", local_frame=local)
-    np.testing.assert_array_almost_equal(linvel, expected_linvel)
-    np.testing.assert_array_almost_equal(angvel, expected_angvel)
-
-  def testContactForce(self):
-    box_on_floor = """
-    <mujoco>
-      <worldbody>
-        <geom name='floor' type='plane' size='1 1 1'/>
-        <body name='box' pos='0 0 .1'>
-          <freejoint/>
-          <geom name='box' type='box' size='.1 .1 .1'/>
-        </body>
-      </worldbody>
-    </mujoco>
-    """
-    model = core.MjModel.from_xml_string(box_on_floor)
-    data = core.MjData(model)
-    # Settle for 500 timesteps (1 second):
-    for _ in range(500):
-      mjlib.mj_step(model.ptr, data.ptr)
-    normal_force = 0.
-    for contact_id in range(data.ncon):
-      force = data.contact_force(contact_id)
-      normal_force += force[0, 0]
-    box_id = 1
-    box_weight = -model.opt.gravity[2]*model.body_mass[box_id]
-    self.assertAlmostEqual(normal_force, box_weight)
-    # Test raising of out-of-range errors:
-    bad_ids = [-1, data.ncon]
-    for bad_id in bad_ids:
-      with self.assertRaisesWithLiteralMatch(
-          ValueError,
-          core._CONTACT_ID_OUT_OF_RANGE.format(
-              max_valid=data.ncon - 1, actual=bad_id)):
-        data.contact_force(bad_id)
-
-  @parameterized.parameters(
-      dict(
-          condim=3,  # Only sliding friction.
-          expected_torques=[False, False, False],  # No torques.
-      ),
-      dict(
-          condim=4,  # Sliding and torsional friction.
-          expected_torques=[True, False, False],  # Only torsional torque.
-      ),
-      dict(
-          condim=6,  # Sliding, torsional and rolling.
-          expected_torques=[True, True, True],  # All torques are nonzero.
-      ),
-  )
-  def testContactTorque(self, condim, expected_torques):
-    ball_on_floor = """
-    <mujoco>
-      <worldbody>
-        <geom name='floor' type='plane' size='1 1 1'/>
-        <body name='ball' pos='0 0 .1'>
-          <freejoint/>
-          <geom name='ball' size='.1' friction='1 .1 .1'/>
-        </body>
-      </worldbody>
-    </mujoco>
-    """
-    model = core.MjModel.from_xml_string(ball_on_floor)
-    data = core.MjData(model)
-    model.geom_condim[:] = condim
-    data.qvel[3:] = np.array((1., 1., 1.))
-    # Settle for 10 timesteps (20 milliseconds):
-    for _ in range(10):
-      mjlib.mj_step(model.ptr, data.ptr)
-    contact_id = 0  # This model has only one contact.
-    _, torque = data.contact_force(contact_id)
-    nonzero_torques = torque != 0
-    np.testing.assert_array_equal(nonzero_torques, np.array((expected_torques)))
 
   def testFreeMjrContext(self):
     for _ in range(5):
@@ -653,7 +539,7 @@ class AttributesTest(parameterized.TestCase):
     pass
 
   def setUp(self):
-    super().setUp()
+    super(AttributesTest, self).setUp()
     self.model = core.MjModel.from_xml_path(HUMANOID_XML_PATH)
     self.data = core.MjData(self.model)
 

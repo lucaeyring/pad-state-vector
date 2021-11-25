@@ -15,6 +15,10 @@
 
 """Planar Manipulator domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -37,8 +41,6 @@ _ARM_JOINTS = ['arm_root', 'arm_shoulder', 'arm_elbow', 'arm_wrist',
                'finger', 'fingertip', 'thumb', 'thumbtip']
 _ALL_PROPS = frozenset(['ball', 'target_ball', 'cup',
                         'peg', 'target_peg', 'slot'])
-_TOUCH_SENSORS = ['palm_touch', 'finger_touch', 'thumb_touch',
-                  'fingertip_touch', 'thumbtip_touch']
 
 SUITE = containers.TaggedTasks()
 
@@ -151,7 +153,7 @@ class Physics(mujoco.Physics):
       return pos
 
   def touch(self):
-    return np.log1p(self.named.data.sensordata[_TOUCH_SENSORS])
+    return np.log1p(self.data.sensordata)
 
   def site_distance(self, site1, site2):
     site1_to_site2 = np.diff(self.named.data.site_xpos[[site2, site1]], axis=0)
@@ -181,7 +183,7 @@ class Bring(base.Task):
     self._receptacle = 'slot' if self._use_peg else 'cup'
     self._insert = insert
     self._fully_observable = fully_observable
-    super().__init__(random=random)
+    super(Bring, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     """Sets the state of the environment at the start of each episode."""
@@ -247,7 +249,7 @@ class Bring(base.Task):
       physics.after_reset()
       penetrating = physics.data.ncon > 0
 
-    super().initialize_episode(physics)
+    super(Bring, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns either features or only sensors (to be used with pixels)."""

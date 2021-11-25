@@ -15,11 +15,14 @@
 
 """Helper object for keeping track of new elements created when copying MJCF."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from dm_control.mjcf import constants
 
 
-class Copier:
+class Copier(object):
   """Helper for keeping track of new elements created when copying MJCF."""
 
   def __init__(self, source):

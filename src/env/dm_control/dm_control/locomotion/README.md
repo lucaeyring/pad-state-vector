@@ -79,8 +79,6 @@ papers. Relevant references include:
 
 -   [Deep neuroethology of a virtual rodent (2020)][merel2020].
 
--   [CoMic: Complementary Task Learning & Mimicry for Reusable Skills (2020)][hasenclever2020]
-
 [installation-and-requirements]: ../../README.md#installation-and-requirements
 [`dm_control.viewer`]: ../viewer/README.md
 [heess2017]: https://arxiv.org/abs/1707.02286
@@ -88,4 +86,3 @@ papers. Relevant references include:
 [merel2019a]: https://arxiv.org/abs/1811.09656
 [merel2019b]: https://arxiv.org/abs/1811.11711
 [merel2020]: https://openreview.net/pdf?id=SyxrxR4KPS
-[hasenclever2020]: http://proceedings.mlr.press/v119/hasenclever20a.html

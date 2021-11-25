@@ -15,6 +15,10 @@
 
 """Point-mass domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -81,7 +85,7 @@ class PointMass(base.Task):
         automatically (default).
     """
     self._randomize_gains = randomize_gains
-    super().__init__(random=random)
+    super(PointMass, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     """Sets the state of the environment at the start of each episode.
@@ -105,7 +109,7 @@ class PointMass(base.Task):
         parallel = abs(np.dot(dir1, dir2)) > 0.9
       physics.model.wrap_prm[[0, 1]] = dir1
       physics.model.wrap_prm[[2, 3]] = dir2
-    super().initialize_episode(physics)
+    super(PointMass, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns an observation of the state."""

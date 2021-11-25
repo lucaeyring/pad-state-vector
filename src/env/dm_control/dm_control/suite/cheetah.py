@@ -15,6 +15,10 @@
 
 """Cheetah Domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -40,9 +44,9 @@ def get_model_and_assets():
 
 
 @SUITE.add('benchmarking')
-def run(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+def run(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None, setting_kwargs=None):
   """Returns the run task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('cheetah.xml', setting_kwargs))
   task = Cheetah(random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(physics, task, time_limit=time_limit,
@@ -74,7 +78,7 @@ class Cheetah(base.Task):
 
     physics.data.time = 0
     self._timeout_progress = 0
-    super().initialize_episode(physics)
+    super(Cheetah, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns an observation of the state, ignoring horizontal position."""

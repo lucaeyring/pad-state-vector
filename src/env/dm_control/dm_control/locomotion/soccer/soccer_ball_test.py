@@ -15,6 +15,9 @@
 
 """Tests for dm_control.locomotion.soccer.soccer_ball."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 from dm_control import composer
@@ -65,9 +68,6 @@ class SoccerBallTest(absltest.TestCase):
     camera_names = [cam.name for cam in ball.mjcf_model.find_all('camera')]
     self.assertCountEqual(expected_camera_names, camera_names)
 
-  def test_damp_ratio_is_valid(self):
-    with self.assertRaisesRegex(ValueError, 'Invalid `damp_ratio`.*'):
-      soccer_ball.SoccerBall(damp_ratio=-0.5)
 
 if __name__ == '__main__':
   absltest.main()

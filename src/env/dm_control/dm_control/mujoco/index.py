@@ -81,6 +81,10 @@ Summary of terminology:
   name.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import collections
 import weakref
@@ -88,6 +92,7 @@ import weakref
 from dm_control.mujoco.wrapper import util
 from dm_control.mujoco.wrapper.mjbindings import sizes
 import numpy as np
+import six
 
 
 # Mapping from {size_name: address_field_name} for ragged dimensions.
@@ -210,12 +215,12 @@ def _get_size_name_to_element_names(model):
     size_name_to_element_names[size_name] = element_names
 
   # Add custom element names for certain columns.
-  for size_name, element_names in _COLUMN_NAMES.items():
+  for size_name, element_names in six.iteritems(_COLUMN_NAMES):
     size_name_to_element_names[size_name] = element_names
 
   # "Ragged" axes inherit their element names from other "non-ragged" axes.
   # For example, the element names for "nv" axis come from "njnt".
-  for size_name, address_field_name in _RAGGED_ADDRS.items():
+  for size_name, address_field_name in six.iteritems(_RAGGED_ADDRS):
     donor = 'n' + address_field_name.split('_')[0]
     if donor in size_name_to_element_names:
       size_name_to_element_names[size_name] = size_name_to_element_names[donor]
@@ -252,7 +257,7 @@ def _get_size_name_to_element_sizes(model):
 
   size_name_to_element_sizes = {}
 
-  for size_name, address_field_name in _RAGGED_ADDRS.items():
+  for size_name, address_field_name in six.iteritems(_RAGGED_ADDRS):
     addresses = getattr(model, address_field_name).ravel()
     total_length = getattr(model, size_name)
     element_sizes = np.diff(np.r_[addresses, total_length])
@@ -313,7 +318,8 @@ def _validate_key_item(key_item):
     raise IndexError('Empty strings are not allowed.')
 
 
-class Axis(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Axis(object):
   """Handles the conversion of named indexing expressions into numpy indices."""
 
   @abc.abstractmethod
@@ -348,7 +354,7 @@ class RegularNamedAxis(Axis):
 
     _validate_key_item(key_item)
 
-    if isinstance(key_item, str):
+    if isinstance(key_item, six.string_types):
       key_item = self._names_to_offsets[util.to_native_string(key_item)]
 
     elif isinstance(key_item, (list, np.ndarray)):
@@ -359,7 +365,7 @@ class RegularNamedAxis(Axis):
       # We assume that either all or none of the items in the array are strings
       # representing names. If there is a mix, we will let NumPy throw an error
       # when trying to index with the returned item.
-      if isinstance(key_item.flat[0], str):
+      if isinstance(key_item.flat[0], six.string_types):
         key_item = np.array([self._names_to_offsets[util.to_native_string(k)]
                              for k in key_item.flat])
         # Ensure the output shape is the same as that of the input.
@@ -404,14 +410,14 @@ class RaggedNamedAxis(Axis):
 
     _validate_key_item(key)
 
-    if isinstance(key, str):
+    if isinstance(key, six.string_types):
       key = self._names_to_slices[util.to_native_string(key)]
 
     elif isinstance(key, (list, np.ndarray)):
       # We assume that either all or none of the items in the sequence are
       # strings representing names. If there is a mix, we will let NumPy throw
       # an error when trying to index with the returned key.
-      if isinstance(key[0], str):
+      if isinstance(key[0], six.string_types):
         new_key = []
         for k in key:
           idx = self._names_to_indices[util.to_native_string(k)]
@@ -433,7 +439,7 @@ Axes = collections.namedtuple('Axes', ['row', 'col'])
 Axes.__new__.__defaults__ = (None,)  # Default value for optional 'col' field
 
 
-class FieldIndexer:
+class FieldIndexer(object):
   """An array-like object providing named access to a field in a MuJoCo struct.
 
   FieldIndexers expose the same attributes and methods as an `np.ndarray`.
@@ -627,7 +633,7 @@ def struct_indexer(struct, struct_name, size_to_axis_indexer):
 
     # Here we override the size name in order to enable named column indexing
     # for certain fields, e.g. 3 becomes "xyz" for field name "xpos".
-    for new_col_size, field_set in _COLUMN_ID_TO_FIELDS.items():
+    for new_col_size, field_set in six.iteritems(_COLUMN_ID_TO_FIELDS):
       if field_name in field_set:
         size_names = (size_names[0], new_col_size)
         break
@@ -649,13 +655,13 @@ def struct_indexer(struct, struct_name, size_to_axis_indexer):
 def make_struct_indexer(field_indexers):
   """Returns an immutable container exposing named indexers as attributes."""
 
-  class StructIndexer:
+  class StructIndexer(object):
     __slots__ = ()
 
     def _asdict(self):
       return field_indexers.copy()
 
-  for name, indexer in field_indexers.items():
+  for name, indexer in six.iteritems(field_indexers):
     setattr(StructIndexer, name, indexer)
 
   return StructIndexer()

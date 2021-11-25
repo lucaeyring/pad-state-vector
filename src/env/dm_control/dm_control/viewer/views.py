@@ -14,13 +14,18 @@
 # ============================================================================
 """Components and views that render custom images into Mujoco render frame."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
-import enum
 
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.mujoco.wrapper import util
 from dm_control.viewer import renderer
+import enum
 import numpy as np
+import six
 
 enums = mjbindings.enums
 mjlib = mjbindings.mjlib
@@ -34,7 +39,8 @@ class PanelLocation(enum.Enum):
   BOTTOM_RIGHT = enums.mjtGridPos.mjGRID_BOTTOMRIGHT
 
 
-class BaseViewportView(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class BaseViewportView(object):
   """Base abstract view class."""
 
   @abc.abstractmethod
@@ -49,7 +55,8 @@ class BaseViewportView(metaclass=abc.ABCMeta):
     pass
 
 
-class ColumnTextModel(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class ColumnTextModel(object):
   """Data model that returns 2 columns of text."""
 
   @abc.abstractmethod
@@ -178,5 +185,5 @@ class ViewportLayout(renderer.Component):
       context: MjrContext instance.
       viewport: MJRRECT instance.
     """
-    for view, location in self._views.items():
+    for view, location in six.iteritems(self._views):
       view.render(context, viewport, location)

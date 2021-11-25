@@ -15,6 +15,9 @@
 
 """Tests for locomotion.tasks.go_to_target."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 
@@ -23,6 +26,7 @@ from dm_control.locomotion.arenas import floors
 from dm_control.locomotion.tasks import go_to_target
 from dm_control.locomotion.walkers import cmu_humanoid
 import numpy as np
+from six.moves import range
 
 
 class GoToTargetTest(absltest.TestCase):

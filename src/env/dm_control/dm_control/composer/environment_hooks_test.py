@@ -15,10 +15,16 @@
 
 """Tests for Entity and Task hooks in an Environment."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
 from absl.testing import absltest
 from dm_control import composer
 from dm_control.composer import hooks_test_utils
 import numpy as np
+from six.moves import range
 
 
 class EnvironmentHooksTest(hooks_test_utils.HooksTestMixin, absltest.TestCase):

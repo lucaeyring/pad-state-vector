@@ -15,9 +15,12 @@
 
 """Utilities for testing rendering."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import functools
-import io
 import os
 import sys
 from dm_control import _render
@@ -25,6 +28,9 @@ from dm_control import mujoco
 from dm_control.mujoco.testing import assets
 import numpy as np
 from PIL import Image
+import six
+from six.moves import range
+from six.moves import zip
 
 
 BACKEND_STRING = 'hardware' if _render.USING_GPU else 'software'
@@ -34,44 +40,22 @@ class ImagesNotCloseError(AssertionError):
   """Exception raised when two images are not sufficiently close."""
 
   def __init__(self, message, expected, actual):
-    super().__init__(message)
+    super(ImagesNotCloseError, self).__init__(message)
     self.expected = expected
     self.actual = actual
 
 
 _CameraSpec = collections.namedtuple(
-    '_CameraSpec', ['height', 'width', 'camera_id', 'render_flag_overrides'])
+    '_CameraSpec', ['height', 'width', 'camera_id'])
 
 
-_SUBDIR_TEMPLATE = (
-    '{name}_seed_{seed}_camera_{camera_id}_{width}x{height}_{backend_string}'
-    '{render_flag_overrides_string}'
-)
-
-
-def _get_subdir(name, seed, backend_string, camera_spec):
-  if camera_spec.render_flag_overrides:
-    overrides = ('{}_{}'.format(k, v) for k, v in
-                 sorted(camera_spec.render_flag_overrides.items()))
-    render_flag_overrides_string = '_' + '_'.join(overrides)
-  else:
-    render_flag_overrides_string = ''
-  return _SUBDIR_TEMPLATE.format(
-      name=name,
-      seed=seed,
-      camera_id=camera_spec.camera_id,
-      width=camera_spec.width,
-      height=camera_spec.height,
-      backend_string=backend_string,
-      render_flag_overrides_string=render_flag_overrides_string,
-  )
-
-
-class _FrameSequence:
+class _FrameSequence(object):
   """A sequence of pre-rendered frames used in integration tests."""
 
   _ASSETS_DIR = 'assets'
   _FRAMES_DIR = 'frames'
+  _SUBDIR_TEMPLATE = (
+      '{name}_seed_{seed}_camera_{camera_id}_{width}x{height}_{backend_string}')
   _FILENAME_TEMPLATE = 'frame_{frame_num:03}.png'
 
   def __init__(self,
@@ -99,10 +83,6 @@ class _FrameSequence:
     self._num_frames = num_frames
     self._steps_per_frame = steps_per_frame
     self._seed = seed
-
-  @property
-  def num_cameras(self):
-    return len(self._camera_specs)
 
   def iter_render(self):
     """Returns an iterator that yields newly rendered frames as numpy arrays."""
@@ -138,11 +118,11 @@ class _FrameSequence:
     for frame_num in range(self._num_frames):
       filename = self._FILENAME_TEMPLATE.format(frame_num=frame_num)
       for camera_spec in self._camera_specs:
-        subdir_name = _get_subdir(
+        subdir_name = self._SUBDIR_TEMPLATE.format(
             name=self._name,
             seed=self._seed,
             backend_string=BACKEND_STRING,
-            camera_spec=camera_spec)
+            **camera_spec._asdict())
         directory = os.path.join(self._FRAMES_DIR, subdir_name)
         yield directory, filename
 
@@ -150,32 +130,16 @@ class _FrameSequence:
 cartpole = _FrameSequence(
     name='cartpole',
     xml_string=assets.get_contents('cartpole.xml'),
-    camera_specs=(
-        _CameraSpec(
-            width=320, height=240, camera_id=0, render_flag_overrides={}),
-    ),
+    camera_specs=[_CameraSpec(width=320, height=240, camera_id=0)],
     steps_per_frame=5)
 
 humanoid = _FrameSequence(
     name='humanoid',
     xml_string=assets.get_contents('humanoid.xml'),
-    camera_specs=(
-        _CameraSpec(
-            width=240, height=320, camera_id=0, render_flag_overrides={}),
-        _CameraSpec(
-            width=240,
-            height=320,
-            camera_id=0,
-            render_flag_overrides={
-                'shadow': False,
-                'reflection': False,
-            }),
-        _CameraSpec(
-            width=64,
-            height=64,
-            camera_id='head_track',
-            render_flag_overrides={}),
-    ))
+    camera_specs=[
+        _CameraSpec(width=240, height=320, camera_id=0),
+        _CameraSpec(width=64, height=64, camera_id='head_track'),
+    ])
 
 
 SEQUENCES = {
@@ -191,7 +155,7 @@ def _save_pixels(pixels, path):
 
 def _load_pixels(path):
   image_bytes = assets.get_contents(path)
-  image = Image.open(io.BytesIO(image_bytes))
+  image = Image.open(six.BytesIO(image_bytes))
   return np.array(image)
 
 
@@ -252,7 +216,7 @@ def save_images_on_failure(output_dir):
                '{}-{{expected,actual,difference}}.png.'.format(e, base_name))
         new_e = ImagesNotCloseError(msg, expected=e.expected, actual=e.actual)
         # Reraise the exception with the original traceback.
-        raise new_e.with_traceback(tb)
+        six.reraise(ImagesNotCloseError, new_e, tb)
 
     return decorated_method
   return decorator

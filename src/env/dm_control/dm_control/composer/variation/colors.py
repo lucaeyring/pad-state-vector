@@ -19,6 +19,10 @@ Classes in this module allow users to specify a variations for each channel in
 a variety of color spaces. The generated values are always RGBA arrays.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import colorsys
 
 from dm_control.composer.variation import base
@@ -72,4 +76,4 @@ class GrayVariation(HsvVariation):
   """
 
   def __init__(self, gray_level, alpha=1.0):
-    super().__init__(h=0.0, s=0.0, v=gray_level, alpha=alpha)
+    super(GrayVariation, self).__init__(h=0.0, s=0.0, v=gray_level, alpha=alpha)

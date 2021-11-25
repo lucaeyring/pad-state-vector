@@ -14,14 +14,20 @@
 # ============================================================================
 """Calculates a covering of text mazes with overlapping rectangular walls."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
+
 import numpy as np
+from six.moves import range
 
 GridCoordinates = collections.namedtuple('GridCoordinates', ('y', 'x'))
 MazeWall = collections.namedtuple('MazeWall', ('start', 'end'))
 
 
-class _MazeWallCoveringContext:
+class _MazeWallCoveringContext(object):
   """Calculates a covering of text mazes with overlapping rectangular walls.
 
   This class uses a greedy algorithm to try and minimize the number of geoms

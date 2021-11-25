@@ -14,14 +14,21 @@
 # ============================================================================
 """Soccer observables modules."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 
 from dm_control.composer.observation import observable as base_observable
 from dm_control.locomotion.soccer import team as team_lib
 import numpy as np
+import six
+from six.moves import zip
 
 
-class ObservablesAdder(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class ObservablesAdder(object):
   """A callable that adds a set of per-player observables for a task."""
 
   @abc.abstractmethod

@@ -15,10 +15,15 @@
 
 """Tests for `dm_control.mjcf.attribute`."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import contextlib
 import hashlib
 import os
 
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control.mjcf import attribute
@@ -30,13 +35,18 @@ from dm_control.mujoco.wrapper import mjbindings
 from dm_control.mujoco.wrapper import util
 from dm_control.mujoco.wrapper.mjbindings import types
 import numpy as np
+import six
 
 mjlib = mjbindings.mjlib
 
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'test_assets')
-FAKE_SCHEMA_FILENAME = 'attribute_test_schema.xml'
+SCHEMA_FILENAME = 'attribute_test_schema.xml'
 
-ORIGINAL_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.xml')
+ORIGINAL_MUJOCO = schema.MUJOCO
+ORIGINAL_FINDABLE_NAMESPACES = schema.FINDABLE_NAMESPACES
+
+FAKE_MUJOCO = schema.parse_schema(os.path.join(ASSETS_DIR, SCHEMA_FILENAME))
+FAKE_FINDABLE_NAMESPACES = frozenset(schema.collect_namespaces(FAKE_MUJOCO))
 
 
 class AttributeTest(parameterized.TestCase):
@@ -47,8 +57,9 @@ class AttributeTest(parameterized.TestCase):
   """
 
   def setUp(self):
-    super().setUp()
-    schema.override_schema(os.path.join(ASSETS_DIR, FAKE_SCHEMA_FILENAME))
+    super(AttributeTest, self).setUp()
+    schema.MUJOCO = FAKE_MUJOCO
+    schema.FINDABLE_NAMESPACES = FAKE_FINDABLE_NAMESPACES
     self._alpha = namescope.NameScope('alpha', None)
     self._beta = namescope.NameScope('beta', None)
     self._beta.parent = self._alpha
@@ -56,8 +67,9 @@ class AttributeTest(parameterized.TestCase):
     self._mujoco.namescope.parent = self._beta
 
   def tearDown(self):
-    super().tearDown()
-    schema.override_schema(ORIGINAL_SCHEMA_PATH)
+    super(AttributeTest, self).tearDown()
+    schema.MUJOCO = ORIGINAL_MUJOCO
+    schema.FINDABLE_NAMESPACES = ORIGINAL_FINDABLE_NAMESPACES
 
   def assertXMLStringIsNone(self, mjcf_element, attribute_name):
     for prefix_root in (self._alpha, self._beta, self._mujoco.namescope, None):
@@ -97,7 +109,7 @@ class AttributeTest(parameterized.TestCase):
 
   def assertCorrectClearBehavior(self, mjcf_element, attribute_name, required):
     if required:
-      return self.assertRaisesRegex(AttributeError, 'is required')
+      return six.assertRaisesRegex(self, AttributeError, 'is required')
     else:
       return self.assertAttributeIsNoneWhenDone(mjcf_element, attribute_name)
 
@@ -140,7 +152,7 @@ class AttributeTest(parameterized.TestCase):
     mujoco.optional.float = 5
     self.assertEqual(mujoco.optional.float, 5)
     self.assertEqual(type(mujoco.optional.float), float)
-    with self.assertRaisesRegex(ValueError, 'Expect a float value'):
+    with six.assertRaisesRegex(self, ValueError, 'Expect a float value'):
       mujoco.optional.float = 'five'
     # failed assignment should not change the value
     self.assertEqual(mujoco.optional.float, 5)
@@ -152,7 +164,7 @@ class AttributeTest(parameterized.TestCase):
     mujoco.optional.int = 12345
     self.assertEqual(mujoco.optional.int, 12345)
     self.assertEqual(type(mujoco.optional.int), int)
-    with self.assertRaisesRegex(ValueError, 'Expect an integer value'):
+    with six.assertRaisesRegex(self, ValueError, 'Expect an integer value'):
       mujoco.optional.int = 10.5
     # failed assignment should not change the value
     self.assertEqual(mujoco.optional.int, 12345)
@@ -164,7 +176,7 @@ class AttributeTest(parameterized.TestCase):
     mujoco.optional.string = 'foobar'
     self.assertEqual(mujoco.optional.string, 'foobar')
     self.assertXMLStringEqual(mujoco.optional, 'string', 'foobar')
-    with self.assertRaisesRegex(ValueError, 'Expect a string value'):
+    with six.assertRaisesRegex(self, ValueError, 'Expect a string value'):
       mujoco.optional.string = mujoco.optional
     self.assertCanBeCleared(mujoco.optional, 'string')
 
@@ -173,9 +185,9 @@ class AttributeTest(parameterized.TestCase):
     mujoco.optional.float_array = [3, 2, 1]
     np.testing.assert_array_equal(mujoco.optional.float_array, [3, 2, 1])
     self.assertEqual(mujoco.optional.float_array.dtype, np.float)
-    with self.assertRaisesRegex(ValueError, 'no more than 3 entries'):
+    with six.assertRaisesRegex(self, ValueError, 'no more than 3 entries'):
       mujoco.optional.float_array = [0, 0, 0, -10]
-    with self.assertRaisesRegex(ValueError, 'one-dimensional array'):
+    with six.assertRaisesRegex(self, ValueError, 'one-dimensional array'):
       mujoco.optional.float_array = np.array([[1, 2], [3, 4]])
     # failed assignments should not change the value
     np.testing.assert_array_equal(mujoco.optional.float_array, [3, 2, 1])
@@ -203,7 +215,7 @@ class AttributeTest(parameterized.TestCase):
     mujoco.optional.int_array = [2, 2]
     np.testing.assert_array_equal(mujoco.optional.int_array, [2, 2])
     self.assertEqual(mujoco.optional.int_array.dtype, np.int)
-    with self.assertRaisesRegex(ValueError, 'no more than 2 entries'):
+    with six.assertRaisesRegex(self, ValueError, 'no more than 2 entries'):
       mujoco.optional.int_array = [0, 0, 10]
     # failed assignment should not change the value
     np.testing.assert_array_equal(mujoco.optional.int_array, [2, 2])
@@ -223,7 +235,7 @@ class AttributeTest(parameterized.TestCase):
       self.assertEqual(mujoco.optional.keyword, value)
       self.assertXMLStringEqual(mujoco.optional, 'keyword', value)
 
-    with self.assertRaisesRegex(ValueError, str(valid_values)):
+    with six.assertRaisesRegex(self, ValueError, str(valid_values)):
       mujoco.optional.keyword = 'delta'
     # failed assignment should not change the value
     self.assertXMLStringEqual(mujoco.optional, 'keyword', valid_values[-1])
@@ -242,16 +254,16 @@ class AttributeTest(parameterized.TestCase):
     self.assertXMLStringIsCorrectlyScoped(subentity_1, 'name', 'foo')
     self.assertXMLStringIsCorrectlyScoped(subentity_2, 'name', 'bar')
 
-    with self.assertRaisesRegex(ValueError, 'Expect a string value'):
+    with six.assertRaisesRegex(self, ValueError, 'Expect a string value'):
       subentity_2.name = subentity_1
-    with self.assertRaisesRegex(ValueError, 'reserved for scoping'):
+    with six.assertRaisesRegex(self, ValueError, 'reserved for scoping'):
       subentity_2.name = 'foo/bar'
-    with self.assertRaisesRegex(ValueError, 'Duplicated identifier'):
+    with six.assertRaisesRegex(self, ValueError, 'Duplicated identifier'):
       subentity_2.name = 'foo'
     # failed assignment should not change the value
     self.assertElementIsIdentifiedByName(subentity_2, 'bar')
 
-    with self.assertRaisesRegex(ValueError, 'cannot be named \'world\''):
+    with six.assertRaisesRegex(self, ValueError, 'cannot be named \'world\''):
       mujoco.worldentity.add('body', name='world')
 
     subentity_1.name = 'baz'
@@ -294,7 +306,6 @@ class AttributeTest(parameterized.TestCase):
     # or 'optional' namespaces. First we assign an 'identified' element to the
     # reference attribute. These are part of the 'optional' namespace.
     bar = mujoco.add('identified', identifier='bar')
-    mujoco.optional.reftype = 'optional'
     mujoco.optional.reference = bar
     self.assertXMLStringIsCorrectlyScoped(mujoco.optional, 'reference', 'bar')
 
@@ -306,7 +317,6 @@ class AttributeTest(parameterized.TestCase):
     # Now assign an 'entity' element to the reference attribute. These are part
     # of the 'entity' namespace.
     baz = mujoco.worldentity.add('entity', name='baz')
-    mujoco.optional.reftype = 'entity'
     mujoco.optional.reference = baz
     self.assertXMLStringIsCorrectlyScoped(mujoco.optional, 'reference', 'baz')
     # The `reftype` should change to 'entity' accordingly.
@@ -322,14 +332,13 @@ class AttributeTest(parameterized.TestCase):
     mujoco = self._mujoco
     bar = mujoco.worldentity.add('entity', name='bar')
     baz = bar.add('subentity', name='baz')
-    mujoco.optional.reftype = 'entity'
     with self.assertRaisesWithLiteralMatch(
         ValueError, attribute._INVALID_REFERENCE_TYPE.format(
-            valid_type='entity', actual_type='subentity')):
+            valid_types=['entity', 'optional'], actual_type='subentity')):
       mujoco.optional.reference = baz
     with self.assertRaisesWithLiteralMatch(
         ValueError, attribute._INVALID_REFERENCE_TYPE.format(
-            valid_type='optional', actual_type='subentity')):
+            valid_types=['optional'], actual_type='subentity')):
       mujoco.optional.fixed_type_ref = baz
 
   def testDefaults(self):
@@ -371,8 +380,8 @@ class AttributeTest(parameterized.TestCase):
     self.assertCorrectXMLStringForDefaultsClass(subentity, 'class', 'main')
 
   @parameterized.named_parameters(
-      ('NoBasepath', '', os.path.join(ASSETS_DIR, FAKE_SCHEMA_FILENAME)),
-      ('WithBasepath', ASSETS_DIR, FAKE_SCHEMA_FILENAME))
+      ('NoBasepath', '', os.path.join(ASSETS_DIR, SCHEMA_FILENAME)),
+      ('WithBasepath', ASSETS_DIR, SCHEMA_FILENAME))
   def testFileFromPath(self, basepath, value):
     mujoco = self._mujoco
     full_path = os.path.join(basepath, value)
@@ -434,13 +443,13 @@ class AttributeTest(parameterized.TestCase):
   def testFileExceptions(self):
     mujoco = self._mujoco
     text_file = mujoco.files.add('text')
-    with self.assertRaisesRegex(ValueError,
-                                'Expect either a string or `Asset` value'):
+    with six.assertRaisesRegex(self, ValueError,
+                               'Expect either a string or `Asset` value'):
       text_file.file = mujoco.optional
 
   def testBasePathExceptions(self):
     mujoco = self._mujoco
-    with self.assertRaisesRegex(ValueError, 'Expect a string value'):
+    with six.assertRaisesRegex(self, ValueError, 'Expect a string value'):
       mujoco.files.text_path = mujoco.optional
 
   def testRequiredAttributes(self):
@@ -450,14 +459,14 @@ class AttributeTest(parameterized.TestCase):
         ('float_array', [1.5, 2.5, 3.5]), ('int_array', [4, 5]),
         ('keyword', 'alpha'), ('identifier', 'thing'),
         ('reference', 'other_thing'), ('basepath', ASSETS_DIR),
-        ('file', FAKE_SCHEMA_FILENAME)
+        ('file', SCHEMA_FILENAME)
     )
 
     # Removing any one of the required attributes should cause initialization
     # of a new element to fail
     for name, _ in attributes:
       attributes_dict = {key: value for key, value in attributes if key != name}
-      with self.assertRaisesRegex(AttributeError, name + '.+ is required'):
+      with six.assertRaisesRegex(self, AttributeError, name + '.+ is required'):
         mujoco.add('required', **attributes_dict)
 
     attributes_dict = {key: value for key, value in attributes}

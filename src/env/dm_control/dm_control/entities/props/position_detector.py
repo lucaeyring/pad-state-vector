@@ -15,12 +15,15 @@
 
 """Detects the presence of registered entities within a cuboidal region."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from dm_control import composer
 from dm_control import mjcf
 import numpy as np
 
-_RENDERED_HEIGHT_IN_2D_MODE = 0.01
+_RENDERED_HEIGHT_IN_2D_MODE = 0.1
 
 
 def _ensure_3d(pos):
@@ -30,7 +33,7 @@ def _ensure_3d(pos):
   return pos
 
 
-class _Detection:
+class _Detection(object):
 
   __slots__ = ('entity', 'detected')
 
@@ -59,10 +62,8 @@ class PositionDetector(composer.Entity):
              size,
              inverted=False,
              visible=False,
-             rgba=(1, 1, 1, 1),
-             material=None,
+             rgba=(1, 0, 0, 0.25),
              detected_rgba=(0, 1, 0, 0.25),
-             retain_substep_detections=False,
              name='position_detector'):
     """Builds the detector.
 
@@ -80,11 +81,7 @@ class PositionDetector(composer.Entity):
         but can be toggled on (e.g. in `dm_control.viewer`) for debugging
         purposes.
       rgba: (optional) The color to render when nothing is detected.
-      material: (optional) The material of the position detector.
       detected_rgba: (optional) The color to render when an entity is detected.
-      retain_substep_detections: (optional) If `True`, the detector will remain
-        activated at the end of a control step if it became activated at any
-        substep. If `False`, the detector reports its instantaneous state.
       name: (optional) XML element name of this position detector.
 
     Raises:
@@ -96,7 +93,6 @@ class PositionDetector(composer.Entity):
 
     self._inverted = inverted
     self._detected = False
-    self._retain_substep_detections = retain_substep_detections
     self._lower = np.array(pos) - np.array(size)
     self._upper = np.array(pos) + np.array(size)
     self._lower_3d = _ensure_3d(self._lower)
@@ -118,7 +114,7 @@ class PositionDetector(composer.Entity):
     self._mjcf_root = mjcf.RootElement(model=name)
     self._site = self._mjcf_root.worldbody.add(
         'site', name='detection_zone', type='box',
-        pos=render_pos, size=render_size, rgba=self._rgba, material=material)
+        pos=render_pos, size=render_size, rgba=self._rgba)
     self._lower_site = self._mjcf_root.worldbody.add(
         'site', name='lower', pos=self._lower_3d, size=[0.05],
         rgba=self._rgba)
@@ -219,10 +215,6 @@ class PositionDetector(composer.Entity):
   def initialize_episode(self, physics, unused_random_state):
     self._update_detection(physics)
 
-  def before_step(self, physics, unused_random_state):
-    for detection in self._entities:
-      detection.detected = False
-
   def after_substep(self, physics, unused_random_state):
     self._update_detection(physics)
 
@@ -231,20 +223,19 @@ class PositionDetector(composer.Entity):
             and np.all(self._upper > xpos[:len(self._upper)]))
 
   def _update_detection(self, physics):
-    self._previously_detected = self._detected
+    previously_detected = self._detected
     self._detected = False
     for detection in self._entities:
-      if not self._retain_substep_detections:
-        detection.detected = False
+      detection.detected = False
       for geom in self._entity_geoms[detection.entity]:
         if self._is_in_zone(physics.bind(geom).xpos) != self._inverted:
           detection.detected = True
           self._detected = True
           break
 
-    if self._detected and not self._previously_detected:
+    if self._detected and not previously_detected:
       physics.bind(self._site).rgba = self._detected_rgba
-    elif self._previously_detected and not self._detected:
+    elif previously_detected and not self._detected:
       physics.bind(self._site).rgba = self._rgba
 
   def site_pos(self, physics):

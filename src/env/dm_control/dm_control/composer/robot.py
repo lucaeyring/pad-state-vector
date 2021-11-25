@@ -15,15 +15,21 @@
 
 """Module defining the abstract robot class."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 
 from dm_control.composer import entity
 import numpy as np
+import six
 
 DOWN_QUATERNION = np.array([0., 0.70710678118, 0.70710678118, 0.])
 
 
-class Robot(entity.Entity, metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Robot(entity.Entity):
   """The abstract base class for robots."""
 
   @abc.abstractproperty

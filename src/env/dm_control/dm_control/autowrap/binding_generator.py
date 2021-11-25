@@ -15,6 +15,10 @@
 
 """Parses MuJoCo header files and generates Python bindings."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 import pprint
 import textwrap
@@ -24,16 +28,24 @@ from dm_control.autowrap import c_declarations
 from dm_control.autowrap import codegen_util
 from dm_control.autowrap import header_parsing
 import pyparsing
+import six
 
 # Absolute path to the top-level module.
 _MODULE = "dm_control.mujoco.wrapper"
+
+# Imports used in all generated source files.
+_BOILERPLATE_IMPORTS = [
+    "from __future__ import absolute_import",
+    "from __future__ import division",
+    "from __future__ import print_function\n",
+]
 
 
 class Error(Exception):
   pass
 
 
-class BindingGenerator:
+class BindingGenerator(object):
   """Parses declarations from MuJoCo headers and generates Python bindings."""
 
   def __init__(self,
@@ -85,7 +97,7 @@ class BindingGenerator:
 
   def get_consts_and_enums(self):
     consts_and_enums = self.consts_dict.copy()
-    for enum in self.enums_dict.values():
+    for enum in six.itervalues(self.enums_dict):
       consts_and_enums.update(enum)
     return consts_and_enums
 
@@ -209,7 +221,7 @@ class BindingGenerator:
       # If the name is empty, see if there is a type declaration that matches
       # this struct's typename
       if not name:
-        for k, v in self.typedefs_dict.items():
+        for k, v in six.iteritems(self.typedefs_dict):
           if v == token.typename:
             name = k
 
@@ -273,7 +285,7 @@ class BindingGenerator:
 
             # Dynamically-sized dimensions have string identifiers
             shape = self.hints_dict[name]
-            if any(isinstance(d, str) for d in shape):
+            if any(isinstance(d, six.string_types) for d in shape):
               out = c_declarations.DynamicNDArray(name, typename, shape,
                                                   comment, parent, is_const)
             else:
@@ -371,7 +383,7 @@ class BindingGenerator:
         elif token.value:
           value = codegen_util.try_coerce_to_num(token.value)
           # Avoid adding function aliases.
-          if isinstance(value, str):
+          if isinstance(value, six.string_types):
             continue
           else:
             self.consts_dict.update({token.name: value})
@@ -446,7 +458,8 @@ class BindingGenerator:
     """.format(scriptname=os.path.split(__file__)[-1],
                mujoco_version=self.consts_dict["mjVERSION_HEADER"]))
     docstring = docstring[1:]  # Strip the leading line break.
-    return "\n".join([docstring] + list(imports) + ["\n"])
+    return "\n".join(
+        [docstring] + _BOILERPLATE_IMPORTS + list(imports) + ["\n"])
 
   def write_consts(self, fname):
     """Write constants."""
@@ -456,7 +469,7 @@ class BindingGenerator:
     with open(fname, "w") as f:
       f.write(self.make_header(imports))
       f.write(codegen_util.comment_line("Constants") + "\n")
-      for name, value in self.consts_dict.items():
+      for name, value in six.iteritems(self.consts_dict):
         f.write("{0} = {1}\n".format(name, value))
       f.write("\n" + codegen_util.comment_line("End of generated code"))
 
@@ -470,9 +483,9 @@ class BindingGenerator:
       ]
       f.write(self.make_header(imports))
       f.write(codegen_util.comment_line("Enums"))
-      for enum_name, members in self.enums_dict.items():
-        fields = ["\"{}\"".format(name) for name in members.keys()]
-        values = [str(value) for value in members.values()]
+      for enum_name, members in six.iteritems(self.enums_dict):
+        fields = ["\"{}\"".format(name) for name in six.iterkeys(members)]
+        values = [str(value) for value in six.itervalues(members)]
         s = textwrap.dedent("""
         {0} = collections.namedtuple(
             "{0}",
@@ -491,7 +504,7 @@ class BindingGenerator:
       f.write(self.make_header(imports))
       f.write(codegen_util.comment_line(
           "ctypes struct, union, and function type declarations"))
-      for type_decl in self.types_dict.values():
+      for type_decl in six.itervalues(self.types_dict):
         f.write("\n" + type_decl.ctypes_decl)
       f.write("\n" + codegen_util.comment_line("End of generated code"))
 
@@ -507,7 +520,7 @@ class BindingGenerator:
       ]
       f.write(self.make_header(imports))
       f.write(codegen_util.comment_line("Low-level wrapper classes"))
-      for type_decl in self.types_dict.values():
+      for type_decl in six.itervalues(self.types_dict):
         if isinstance(type_decl, c_declarations.Struct):
           f.write("\n" + type_decl.wrapper_class)
       f.write("\n" + codegen_util.comment_line("End of generated code"))
@@ -531,12 +544,12 @@ class BindingGenerator:
       f.write("mjlib = util.get_mjlib()\n")
 
       f.write("\n" + codegen_util.comment_line("ctypes function declarations"))
-      for function in self.funcs_dict.values():
+      for function in six.itervalues(self.funcs_dict):
         f.write("\n" + function.ctypes_func_decl(cdll_name="mjlib"))
 
       # Only require strings for UI purposes.
       f.write("\n" + codegen_util.comment_line("String arrays") + "\n")
-      for string_arr in self.strings_dict.values():
+      for string_arr in six.itervalues(self.strings_dict):
         f.write(string_arr.ctypes_var_decl(cdll_name="mjlib"))
 
       f.write("\n" + codegen_util.comment_line("Callback function pointers"))
@@ -545,9 +558,8 @@ class BindingGenerator:
                 for func_ptr in self.func_ptrs_dict.values()]
       values = [func_ptr.ctypes_var_decl(cdll_name="mjlib")
                 for func_ptr in self.func_ptrs_dict.values()]
-      f.write(
-          textwrap.dedent("""
-        class _Callbacks:
+      f.write(textwrap.dedent("""
+        class _Callbacks(object):
 
           __slots__ = [
               {0}

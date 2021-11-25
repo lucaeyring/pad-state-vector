@@ -15,8 +15,13 @@
 
 """Saves Mujoco models with relevant assets."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 from dm_control.mujoco.wrapper import util
+import six
 
 
 def export_with_assets(mjcf_model, out_dir, out_file_name=None):
@@ -46,6 +51,6 @@ def export_with_assets(mjcf_model, out_dir, out_file_name=None):
   assets[out_file_name] = mjcf_model.to_xml_string()
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
-  for filename, contents in assets.items():
+  for filename, contents in six.iteritems(assets):
     with open(os.path.join(out_dir, filename), 'wb') as f:
       f.write(util.to_binary_string(contents))

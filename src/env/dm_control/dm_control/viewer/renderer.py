@@ -14,6 +14,10 @@
 # ============================================================================
 """Renderer module."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import contextlib
 
@@ -21,6 +25,8 @@ from dm_control.mujoco import wrapper
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.viewer import util
 import numpy as np
+import six
+from six.moves import range
 
 enums = mjbindings.enums
 mjlib = mjbindings.mjlib
@@ -47,7 +53,8 @@ _DEFAULT_RENDER_FLAGS[enums.mjtRndFlag.mjRND_REFLECTION] = 1
 _DEFAULT_RENDER_FLAGS[enums.mjtRndFlag.mjRND_SKYBOX] = 1
 
 
-class BaseRenderer(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class BaseRenderer(object):
   """A base class for component-based Mujoco Renderers implementations.
 
   Attributes:
@@ -76,7 +83,8 @@ class BaseRenderer(metaclass=abc.ABCMeta):
       component.render(context, viewport)
 
 
-class Component(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Component(object):
   """Components are a way to introduce extra rendering content.
 
   They are invoked after the main rendering pass, allowing to draw extra images
@@ -94,7 +102,7 @@ class Component(metaclass=abc.ABCMeta):
     pass
 
 
-class NullRenderer:
+class NullRenderer(object):
   """A stub off-screen renderer used when no other renderer is available."""
 
   def __init__(self):
@@ -120,7 +128,7 @@ class OffScreenRenderer(BaseRenderer):
       model: instance of MjModel.
       surface: instance of dm_control.render.BaseContext.
     """
-    super().__init__()
+    super(OffScreenRenderer, self).__init__()
     self._surface = surface
     self._model = model
     self._mujoco_context = None
@@ -182,7 +190,7 @@ class OffScreenRenderer(BaseRenderer):
     return self._pixels
 
 
-class Perturbation:
+class Perturbation(object):
   """A proxy that allows to move a scene object."""
 
   def __init__(self, body_id, model, data, scene):
@@ -262,7 +270,7 @@ class Perturbation:
     return self._body_id
 
 
-class NullPerturbation:
+class NullPerturbation(object):
   """An empty perturbation.
 
   A null-object pattern, used to avoid cumbersome if clauses.
@@ -280,7 +288,7 @@ class NullPerturbation:
     return None
 
 
-class RenderSettings:
+class RenderSettings(object):
   """Renderer settings."""
 
   def __init__(self):
@@ -369,15 +377,10 @@ class RenderSettings:
         (self._visualization_options.label - 1) % enums.mjtLabel.mjNLABEL)
 
 
-class SceneCamera:
+class SceneCamera(object):
   """A camera used to navigate around and render the scene."""
 
-  def __init__(self,
-               model,
-               data,
-               options,
-               settings=None,
-               zoom_factor=_FULL_SCENE_ZOOM_FACTOR):
+  def __init__(self, model, data, options, settings=None):
     """Instance initializer.
 
     Args:
@@ -386,7 +389,6 @@ class SceneCamera:
       options: RenderSettings instance.
       settings: Optional, internal camera settings obtained from another
         SceneCamera instance using 'settings' property.
-      zoom_factor: The initial zoom factor for zooming into the scene.
     """
     # Design notes:
     # We need to recreate the camera for each new model, because each model
@@ -401,13 +403,9 @@ class SceneCamera:
     self._camera.trackbodyid = _NO_BODY_TRACKED_INDEX
     self._camera.fixedcamid = _FREE_CAMERA_INDEX
     self._camera.type_ = enums.mjtCamera.mjCAMERA_FREE
-    self._zoom_factor = zoom_factor
 
     if settings is not None:
-      self._settings = settings
       self.settings = settings
-    else:
-      self._settings = self._camera
 
   def set_freelook_mode(self):
     """Enables 6 degrees of freedom of movement for the camera."""
@@ -503,9 +501,7 @@ class SceneCamera:
   def zoom_to_scene(self):
     """Zooms in on the entire scene."""
     self.look_at(self._model.stat.center[:],
-                 self._zoom_factor * self._model.stat.extent)
-
-    self.settings = self._settings
+                 _FULL_SCENE_ZOOM_FACTOR * self._model.stat.extent)
 
   @property
   def transform(self):
@@ -572,7 +568,7 @@ class SceneCamera:
     return frustum_near > 0 and frustum_near < frustum_far
 
 
-class Viewport:
+class Viewport(object):
   """Render viewport."""
 
   def __init__(self, width=1, height=1):

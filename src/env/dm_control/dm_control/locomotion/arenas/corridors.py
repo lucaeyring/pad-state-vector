@@ -15,11 +15,16 @@
 
 """Corridor-based arenas."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 
 from dm_control import composer
 from dm_control.composer import variation
 from dm_control.locomotion.arenas import assets as locomotion_arenas_assets
+import six
 
 _SIDE_WALLS_GEOM_GROUP = 3
 _CORRIDOR_X_PADDING = 2.0
@@ -28,7 +33,8 @@ _SIDE_WALL_HEIGHT = 4.0
 _DEFAULT_ALPHA = 0.5
 
 
-class Corridor(composer.Arena, metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Corridor(composer.Arena):
   """Abstract base class for corridor-type arenas."""
 
   @abc.abstractmethod
@@ -85,7 +91,7 @@ class EmptyCorridor(Corridor):
         perimeter should be rendered.
       name: The name of this arena.
     """
-    super()._build(name=name)
+    super(EmptyCorridor, self)._build(name=name)
 
     self._corridor_width = corridor_width
     self._corridor_length = corridor_length
@@ -202,7 +208,7 @@ class GapsCorridor(EmptyCorridor):
       aesthetic: option to adjust the material properties and skybox
       name: The name of this arena.
     """
-    super()._build(
+    super(GapsCorridor, self)._build(
         corridor_width=corridor_width,
         corridor_length=corridor_length,
         visible_side_planes=visible_side_planes,
@@ -250,7 +256,7 @@ class GapsCorridor(EmptyCorridor):
         `Variation` objects.
     """
     # Resize the entire corridor first.
-    super().regenerate(random_state)
+    super(GapsCorridor, self).regenerate(random_state)
 
     # Move the ground plane down and make it invisible.
     self._ground_plane.pos = [self._current_corridor_length / 2, 0, -10]
@@ -343,7 +349,6 @@ class WallsCorridor(EmptyCorridor):
              corridor_width=4,
              corridor_length=40,
              visible_side_planes=False,
-             include_initial_padding=True,
              name='walls_corridor'):
     """Builds the corridor.
 
@@ -365,11 +370,9 @@ class WallsCorridor(EmptyCorridor):
         specifies the length of the corridor.
       visible_side_planes: Whether to the side planes that bound the corridor's
         perimeter should be rendered.
-      include_initial_padding: Whether to include initial offset before first
-        obstacle.
       name: The name of this arena.
     """
-    super()._build(
+    super(WallsCorridor, self)._build(
         corridor_width=corridor_width,
         corridor_length=corridor_length,
         visible_side_planes=visible_side_planes,
@@ -380,7 +383,6 @@ class WallsCorridor(EmptyCorridor):
     self._wall_gap = wall_gap
     self._wall_width = wall_width
     self._swap_wall_side = swap_wall_side
-    self._include_initial_padding = include_initial_padding
 
   def regenerate(self, random_state):
     """Regenerates this corridor.
@@ -395,12 +397,9 @@ class WallsCorridor(EmptyCorridor):
       random_state: A `numpy.random.RandomState` object that is passed to the
         `Variation` objects.
     """
-    super().regenerate(random_state)
-
+    super(WallsCorridor, self).regenerate(random_state)
     wall_x = variation.evaluate(
         self._wall_gap, random_state=random_state) - _CORRIDOR_X_PADDING
-    if self._include_initial_padding:
-      wall_x += 2*_CORRIDOR_X_PADDING
     wall_side = 0
     wall_id = 0
     while wall_x < self._current_corridor_length:

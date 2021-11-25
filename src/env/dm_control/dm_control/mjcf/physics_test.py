@@ -15,10 +15,14 @@
 
 """Tests for `dm_control.mjcf.physics`."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import copy
 import os
-import pickle
 
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control import mjcf
@@ -26,6 +30,10 @@ from dm_control.mjcf import physics as mjcf_physics
 from dm_control.mujoco.wrapper import mjbindings
 import mock
 import numpy as np
+import six
+from six.moves import cPickle
+from six.moves import range
+from six.moves import zip
 
 mjlib = mjbindings.mjlib
 
@@ -36,7 +44,7 @@ class PhysicsTest(parameterized.TestCase):
   """Tests for `mjcf.Physics`."""
 
   def setUp(self):
-    super().setUp()
+    super(PhysicsTest, self).setUp()
     self.model = mjcf.from_path(ARM_MODEL)
     self.physics = mjcf.Physics.from_xml_string(
         self.model.to_xml_string(), assets=self.model.get_assets())
@@ -189,7 +197,8 @@ class PhysicsTest(parameterized.TestCase):
     with self.assertRaises(AttributeError):
       _ = physics.bind(normal_body).mocap_pos
 
-    with self.assertRaisesRegex(
+    with six.assertRaisesRegex(
+        self,
         ValueError,
         'Cannot bind to a collection containing multiple element types'):
       physics.bind([mocap_body, normal_body])
@@ -222,16 +231,17 @@ class PhysicsTest(parameterized.TestCase):
   def test_exceptions(self):
     joint = self.model.find_all('joint')[0]
     geom = self.model.find_all('geom')[0]
-    with self.assertRaisesRegex(
+    with six.assertRaisesRegex(
+        self,
         ValueError,
         'Cannot bind to a collection containing multiple element types'):
       self.physics.bind([joint, geom])
 
-    with self.assertRaisesRegex(ValueError, 'cannot be bound to physics'):
+    with six.assertRaisesRegex(self, ValueError, 'cannot be bound to physics'):
       mjcf.physics.Binding(self.physics, 'invalid_namespace', 'whatever')
 
     binding = self.physics.bind(joint)
-    with self.assertRaisesRegex(AttributeError, 'does not have attribute'):
+    with six.assertRaisesRegex(self, AttributeError, 'does not have attribute'):
       getattr(binding, 'invalid_attribute')
 
   def test_dirty(self):
@@ -558,7 +568,7 @@ class PhysicsTest(parameterized.TestCase):
     with self.assertRaisesWithLiteralMatch(
         NotImplementedError,
         mjcf_physics._PICKLING_NOT_SUPPORTED.format(type=type(xpos_view))):
-      pickle.dumps(xpos_view)
+      cPickle.dumps(xpos_view)
 
 if __name__ == '__main__':
   absltest.main()

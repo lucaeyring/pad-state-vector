@@ -14,13 +14,21 @@
 # ============================================================================
 """Tests for arenas.mazes.covering."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 from dm_control.locomotion.arenas import covering
 import labmaze
 import numpy as np
+import six
+from six.moves import range
 
-_STRING_DTYPE = '|U1'
+if six.PY3:
+  _STRING_DTYPE = '|U1'
+else:
+  _STRING_DTYPE = '|S1'
 
 
 class CoveringTest(absltest.TestCase):

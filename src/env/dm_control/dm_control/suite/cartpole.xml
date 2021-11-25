@@ -29,6 +29,11 @@
         <geom name="pole_1"/>
       </body>
     </body>
+
+    <!-- <body name='distractor'>
+      <geom name="distractor_1" pos="-0.75 2 .25" size=".25 .25 .25" material="target"/>
+    </body> -->
+
   </worldbody>
 
   <actuator>

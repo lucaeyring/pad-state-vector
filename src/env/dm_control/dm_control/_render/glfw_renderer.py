@@ -15,19 +15,27 @@
 
 """An OpenGL renderer backed by GLFW."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import sys
 from dm_control._render import base
 from dm_control._render import executor
+import six
 
 # Re-raise any exceptions that occur during module import as `ImportError`s.
 # This simplifies the conditional imports in `render/__init__.py`.
 try:
   import glfw  # pylint: disable=g-import-not-at-top
 except (ImportError, IOError, OSError) as exc:
-  raise ImportError from exc
+  _, exc, tb = sys.exc_info()
+  six.reraise(ImportError, ImportError(str(exc)), tb)
 try:
   glfw.init()
 except glfw.GLFWError as exc:
-  raise ImportError from exc
+  _, exc, tb = sys.exc_info()
+  six.reraise(ImportError, ImportError(str(exc)), tb)
 
 
 class GLFWContext(base.ContextBase):
@@ -37,7 +45,8 @@ class GLFWContext(base.ContextBase):
     # GLFWContext always uses `PassthroughRenderExecutor` rather than offloading
     # rendering calls to a separate thread because GLFW can only be safely used
     # from the main thread.
-    super().__init__(max_width, max_height, executor.PassthroughRenderExecutor)
+    super(GLFWContext, self).__init__(max_width, max_height,
+                                      executor.PassthroughRenderExecutor)
 
   def _platform_init(self, max_width, max_height):
     """Initializes this context.

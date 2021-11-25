@@ -15,6 +15,10 @@
 
 """Finger Domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -24,6 +28,7 @@ from dm_control.suite import common
 from dm_control.suite.utils import randomizers
 from dm_control.utils import containers
 import numpy as np
+from six.moves import range
 
 _DEFAULT_TIME_LIMIT = 20  # (seconds)
 _CONTROL_TIMESTEP = .02   # (seconds)
@@ -47,9 +52,9 @@ def get_model_and_assets():
 
 
 @SUITE.add('benchmarking')
-def spin(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+def spin(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None, setting_kwargs=None):
   """Returns the Spin task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('finger.xml', setting_kwargs))
   task = Spin(random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -59,9 +64,9 @@ def spin(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
 
 @SUITE.add('benchmarking')
 def turn_easy(time_limit=_DEFAULT_TIME_LIMIT, random=None,
-              environment_kwargs=None):
+              environment_kwargs=None, setting_kwargs=None):
   """Returns the easy Turn task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('finger.xml', setting_kwargs))
   task = Turn(target_radius=_EASY_TARGET_SIZE, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -71,9 +76,9 @@ def turn_easy(time_limit=_DEFAULT_TIME_LIMIT, random=None,
 
 @SUITE.add('benchmarking')
 def turn_hard(time_limit=_DEFAULT_TIME_LIMIT, random=None,
-              environment_kwargs=None):
+              environment_kwargs=None, setting_kwargs=None):
   """Returns the hard Turn task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('finger.xml', setting_kwargs))
   task = Turn(target_radius=_HARD_TARGET_SIZE, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -134,14 +139,14 @@ class Spin(base.Task):
         integer seed for creating a new `RandomState`, or None to select a seed
         automatically (default).
     """
-    super().__init__(random=random)
+    super(Spin, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     physics.named.model.site_rgba['target', 3] = 0
     physics.named.model.site_rgba['tip', 3] = 0
     physics.named.model.dof_damping['hinge'] = .03
     _set_random_joint_angles(physics, self.random)
-    super().initialize_episode(physics)
+    super(Spin, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns state and touch sensors, and target info."""
@@ -169,7 +174,7 @@ class Turn(base.Task):
         automatically (default).
     """
     self._target_radius = target_radius
-    super().__init__(random=random)
+    super(Turn, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     target_angle = self.random.uniform(-np.pi, np.pi)
@@ -182,7 +187,7 @@ class Turn(base.Task):
 
     _set_random_joint_angles(physics, self.random)
 
-    super().initialize_episode(physics)
+    super(Turn, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns state, touch sensors, and target info."""

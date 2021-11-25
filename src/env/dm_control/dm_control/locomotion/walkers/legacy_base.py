@@ -15,6 +15,10 @@
 
 """Base class for Walkers."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 
 from dm_control import composer
@@ -22,6 +26,7 @@ from dm_control.composer.observation import observable
 from dm_control.locomotion.walkers import base
 from dm_control.locomotion.walkers import initializers
 from dm_control.mujoco.wrapper.mjbindings import mjlib
+
 import numpy as np
 
 _RANGEFINDER_SCALE = 10.0
@@ -82,7 +87,7 @@ class Walker(base.Walker):
     raise NotImplementedError
 
   def after_compile(self, physics, unused_random_state):
-    super().after_compile(physics, unused_random_state)
+    super(Walker, self).after_compile(physics, unused_random_state)
     self._end_effector_geom_ids = set()
     for eff_body in self.end_effectors:
       eff_geom = eff_body.find_all('geom')
@@ -175,23 +180,6 @@ class Walker(base.Walker):
     # explicitly.
     # TODO(b/123065920): Consider using a `subtreelinvel` sensor instead.
     mjlib.mj_subtreeVel(physics.model.ptr, physics.data.ptr)
-
-  @composer.cached_property
-  def mocap_joints(self):
-    return tuple(self.mjcf_model.find_all('joint'))
-
-  def actuator_force(self, physics):
-    return physics.bind(self.observable_joints).qfrc_actuator
-
-  @composer.cached_property
-  def mocap_to_observable_joint_order(self):
-    mocap_to_obs = [self.mocap_joints.index(j) for j in self.observable_joints]
-    return mocap_to_obs
-
-  @composer.cached_property
-  def observable_to_mocap_joint_order(self):
-    obs_to_mocap = [self.observable_joints.index(j) for j in self.mocap_joints]
-    return obs_to_mocap
 
 
 class WalkerObservables(base.WalkerObservables):

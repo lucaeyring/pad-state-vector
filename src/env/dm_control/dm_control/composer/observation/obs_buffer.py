@@ -15,11 +15,18 @@
 
 """"An object that manages the buffering and delaying of observation."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
+
 import numpy as np
+import six
+from six.moves import range
 
 
-class InFlightObservation:
+class InFlightObservation(object):
   """Represents a delayed observation that may not have arrived yet.
 
   Attributes:
@@ -43,10 +50,10 @@ class InFlightObservation:
     return self.arrival < other.arrival
 
 
-class Buffer:
+class Buffer(object):
   """An object that manages the buffering and delaying of observation."""
 
-  def __init__(self, buffer_size, shape, dtype, pad_with_initial_value=False,
+  def __init__(self, buffer_size, shape, dtype, pad_value=0,
                strip_singleton_buffer_dim=False):
     """Initializes this observation buffer.
 
@@ -61,10 +68,10 @@ class Buffer:
         `(buffer_size, shape[0], ..., shape[n])`, unless `buffer_size == 1`
         and `strip_singleton_buffer_dim == True`.
       dtype: The NumPy dtype of observation entries.
-      pad_with_initial_value: (optional) A boolean. If `True` then the buffer
-        returned by `read` is padded with the first observation value when there
-        are fewer observation entries than `buffer_size`. If `False` then the
-        buffer returned by `read` is padded with zeroes.
+      pad_value: (optional) The value that is used to pad the buffer returned
+        by `read` when the number of observation entries is less
+        then `buffer_size`. Specifically, the buffer will be padded by
+        `np.full(shape, pad_value, dtype)`.
       strip_singleton_buffer_dim: (optional) A boolean, if `True` and
         `buffer_size == 1` then the leading dimension will not be added to the
         shape of the array returned by `read`.
@@ -88,10 +95,9 @@ class Buffer:
     # The "arrived" deque contains entries that are due to be delivered now.
     # This deque should never grow beyond buffer_size.
     self._arrived_deque = collections.deque(maxlen=buffer_size)
-    if not pad_with_initial_value:
-      for _ in range(buffer_size):
-        self._arrived_deque.append(
-            InFlightObservation(-np.inf, 0, np.full(shape, 0, dtype)))
+    for _ in range(buffer_size):
+      self._arrived_deque.append(
+          InFlightObservation(-np.inf, 0, np.full(shape, pad_value, dtype)))
 
     # The "pending" deque contains entries that are stored for future delivery.
     # This deque can grow arbitrarily large in presence of long delays.
@@ -126,12 +132,6 @@ class Buffer:
     Raises:
       ValueError: if `delay` is negative.
     """
-    # If using `pad_with_initial_value`, the `arrived_deque` would be empty.
-    # We can now pad it with the initial value now.
-    if not self._arrived_deque:
-      for _ in range(self._buffer_size):
-        self._arrived_deque.append(InFlightObservation(-np.inf, 0, value))
-
     self._update_arrived_deque(timestamp)
     new_obs = InFlightObservation(timestamp, delay, np.array(value))
     arrival = new_obs.arrival
@@ -205,7 +205,7 @@ class Buffer:
       while True:
         yield InFlightObservation(-np.inf, 0, None)
     existing_timestamp_iter = get_next_existing_timestamp()
-    existing_timestamp = next(existing_timestamp_iter)
+    existing_timestamp = six.next(existing_timestamp_iter)
 
     # Build the simulated state of the pending deque at the end of the proposed
     # schedule.
@@ -217,7 +217,7 @@ class Buffer:
       # proposed new observations.
       while existing_timestamp.arrival > new_timestamp.arrival:
         future_pending_deque.appendleft(existing_timestamp)
-        existing_timestamp = next(existing_timestamp_iter)
+        existing_timestamp = six.next(existing_timestamp_iter)
       future_pending_deque.appendleft(new_timestamp)
 
     # Find the next timestep at which `read` is called.

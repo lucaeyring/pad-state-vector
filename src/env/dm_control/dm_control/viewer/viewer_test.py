@@ -14,6 +14,9 @@
 # ============================================================================
 """Tests of the viewer.py module."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 from dm_control.mujoco.wrapper.mjbindings import enums
@@ -25,7 +28,7 @@ import mock
 class ViewerTest(absltest.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(ViewerTest, self).setUp()
     self.viewport = mock.MagicMock()
     self.mouse = mock.MagicMock()
     self.keyboard = mock.MagicMock()
@@ -142,7 +145,7 @@ class ViewerTest(absltest.TestCase):
 class CameraSelectorTest(absltest.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(CameraSelectorTest, self).setUp()
     self.camera = mock.MagicMock()
     self.model = mock.MagicMock()
     self.free_camera = mock.MagicMock()
@@ -212,7 +215,7 @@ class CameraSelectorTest(absltest.TestCase):
 class FreeCameraControllerTest(absltest.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(FreeCameraControllerTest, self).setUp()
     self.viewport = mock.MagicMock()
     self.camera = mock.MagicMock()
     self.mouse = mock.MagicMock()
@@ -369,7 +372,7 @@ class FreeCameraControllerTest(absltest.TestCase):
 class ManipulationControllerTest(absltest.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(ManipulationControllerTest, self).setUp()
     self.viewport = mock.MagicMock()
     self.camera = mock.MagicMock()
     self.mouse = mock.MagicMock()

@@ -15,12 +15,16 @@
 
 """Tests for locomotion.arenas.corridors."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control import mjcf
 from dm_control.composer.variation import deterministic
 from dm_control.locomotion.arenas import corridors
+from six.moves import zip
 
 
 class CorridorsTest(parameterized.TestCase):

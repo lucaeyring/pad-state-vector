@@ -15,12 +15,17 @@
 
 """An object to manage the scoping of identifiers in MJCF models."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control.mjcf import constants
+import six
 
 
-class NameScope:
+class NameScope(object):
   """A name scoping context for an MJCF model.
 
   This object maintains the uniqueness of identifiers within each MJCF
@@ -58,7 +63,7 @@ class NameScope:
 
   def increment_revision(self):
     self._revision += 1
-    for namescope in self._namespaces['namescope'].values():
+    for namescope in six.itervalues(self._namespaces['namescope']):
       namescope.increment_revision()
 
   @property

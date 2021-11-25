@@ -15,14 +15,19 @@
 
 """Base class for variations and binary operations on variations."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import operator
 
 from dm_control.composer.variation import variation_values
-import numpy as np
+import six
 
 
-class Variation(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Variation(object):
   """Abstract base class for variations."""
 
   @abc.abstractmethod
@@ -77,25 +82,6 @@ class Variation(metaclass=abc.ABCMeta):
   def __rpow__(self, other):
     return _BinaryOperation(operator.pow, other, self)
 
-  def __getitem__(self, index):
-    return _GetItemOperation(self, index)
-
-  def __neg__(self):
-    return _UnaryOperation(operator.neg, self)
-
-
-class _UnaryOperation(Variation):
-  """Represents the result of applying a unary operator to a Variation."""
-
-  def __init__(self, op, variation):
-    self._op = op
-    self._variation = variation
-
-  def __call__(self, initial_value=None, current_value=None, random_state=None):
-    value = variation_values.evaluate(
-        self._variation, initial_value, current_value, random_state)
-    return self._op(value)
-
 
 class _BinaryOperation(Variation):
   """Represents the result of applying a binary operator to two Variations."""
@@ -111,15 +97,3 @@ class _BinaryOperation(Variation):
     second_value = variation_values.evaluate(
         self._second, initial_value, current_value, random_state)
     return self._op(first_value, second_value)
-
-
-class _GetItemOperation(Variation):
-
-  def __init__(self, variation, index):
-    self._variation = variation
-    self._index = index
-
-  def __call__(self, initial_value=None, current_value=None, random_state=None):
-    value = variation_values.evaluate(
-        self._variation, initial_value, current_value, random_state)
-    return np.asarray(value)[self._index]

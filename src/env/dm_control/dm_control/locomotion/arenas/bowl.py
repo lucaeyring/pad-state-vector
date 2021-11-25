@@ -14,10 +14,14 @@
 # ============================================================================
 """Bowl arena with bumps."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from dm_control import composer
 from dm_control.locomotion.arenas import assets as locomotion_arenas_assets
 from dm_control.mujoco.wrapper import mjbindings
+
 import numpy as np
 from scipy import ndimage
 
@@ -35,7 +39,7 @@ class Bowl(composer.Arena):
   """A bowl arena with sinusoidal bumps."""
 
   def _build(self, size=(10, 10), aesthetic='default', name='bowl'):
-    super()._build(name=name)
+    super(Bowl, self)._build(name=name)
 
     self._hfield = self._mjcf_root.asset.add(
         'hfield',

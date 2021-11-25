@@ -15,7 +15,10 @@
 
 """RL environment classes for Composer tasks."""
 
-import enum
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import warnings
 import weakref
 
@@ -25,6 +28,7 @@ from dm_control.composer import observation
 from dm_control.rl import control
 import dm_env
 import numpy as np
+from six.moves import range
 
 warnings.simplefilter('always', DeprecationWarning)
 
@@ -53,16 +57,11 @@ def _callable_is_trivial(f):
           f.__code__.co_code == _EMPTY_WITH_DOCSTRING_CODE)
 
 
-class ObservationPadding(enum.Enum):
-  INITIAL_VALUE = -1
-  ZERO = 0
-
-
 class EpisodeInitializationError(RuntimeError):
   """Raised by a `composer.Task` when it fails to initialize an episode."""
 
 
-class _Hook:
+class _Hook(object):
 
   __slots__ = ('entity_hooks', 'extra_hooks')
 
@@ -71,7 +70,7 @@ class _Hook:
     self.extra_hooks = []
 
 
-class _EnvironmentHooks:
+class _EnvironmentHooks(object):
   """Helper object that scans and memoizes various hooks in a task.
 
   This object exist to ensure that we do not incur a substantial overhead in
@@ -162,14 +161,13 @@ class _EnvironmentHooks:
       extra_hook(physics, random_state)
 
 
-class _CommonEnvironment:
+class _CommonEnvironment(object):
   """Common components for RL environments."""
 
   def __init__(self, task, time_limit=float('inf'), random_state=None,
                n_sub_steps=None,
                raise_exception_on_physics_error=True,
-               strip_singleton_obs_buffer_dim=False,
-               delayed_observation_padding=ObservationPadding.ZERO):
+               strip_singleton_obs_buffer_dim=False):
     """Initializes an instance of `_CommonEnvironment`.
 
     Args:
@@ -189,17 +187,7 @@ class _CommonEnvironment:
       strip_singleton_obs_buffer_dim: (optional) A boolean, if `True`,
         the array shape of observations with `buffer_size == 1` will not have a
         leading buffer dimension.
-      delayed_observation_padding: (optional) An `ObservationPadding` enum value
-        specifying the padding behavior of the initial buffers for delayed
-        observables. If `ZERO` then the buffer is initially filled with zeroes.
-        If `INITIAL_VALUE` then the buffer is initially filled with the first
-        observation values.
     """
-    if not isinstance(delayed_observation_padding, ObservationPadding):
-      raise ValueError(
-          f'`delayed_observation_padding` should be an `ObservationPadding` '
-          f'enum value: got {delayed_observation_padding}')
-
     self._task = task
     if not isinstance(random_state, np.random.RandomState):
       self._random_state = np.random.RandomState(random_state)
@@ -209,7 +197,6 @@ class _CommonEnvironment:
     self._time_limit = time_limit
     self._raise_exception_on_physics_error = raise_exception_on_physics_error
     self._strip_singleton_obs_buffer_dim = strip_singleton_obs_buffer_dim
-    self._delayed_observation_padding = delayed_observation_padding
 
     if n_sub_steps is not None:
       warnings.simplefilter('once', DeprecationWarning)
@@ -250,11 +237,9 @@ class _CommonEnvironment:
         self._task.root_entity.mjcf_model)
 
   def _make_observation_updater(self):
-    pad_with_initial_value = (
-        self._delayed_observation_padding == ObservationPadding.INITIAL_VALUE)
     return observation.Updater(
         self._task.observables, self._task.physics_steps_per_control_step,
-        self._strip_singleton_obs_buffer_dim, pad_with_initial_value)
+        self._strip_singleton_obs_buffer_dim)
 
   @property
   def physics(self):
@@ -290,8 +275,7 @@ class Environment(_CommonEnvironment, dm_env.Environment):
                n_sub_steps=None,
                raise_exception_on_physics_error=True,
                strip_singleton_obs_buffer_dim=False,
-               max_reset_attempts=1,
-               delayed_observation_padding=ObservationPadding.ZERO):
+               max_reset_attempts=1):
     """Initializes an instance of `Environment`.
 
     Args:
@@ -315,20 +299,14 @@ class Environment(_CommonEnvironment, dm_env.Environment):
         number of times. If this count is exceeded then the most recent
         exception will be allowed to propagate. Defaults to 1, i.e. no failure
         is allowed.
-      delayed_observation_padding: (optional) An `ObservationPadding` enum value
-        specifying the padding behavior of the initial buffers for delayed
-        observables. If `ZERO` then the buffer is initially filled with zeroes.
-        If `INITIAL_VALUE` then the buffer is initially filled with the first
-        observation values.
     """
-    super().__init__(
+    super(Environment, self).__init__(
         task=task,
         time_limit=time_limit,
         random_state=random_state,
         n_sub_steps=n_sub_steps,
         raise_exception_on_physics_error=raise_exception_on_physics_error,
-        strip_singleton_obs_buffer_dim=strip_singleton_obs_buffer_dim,
-        delayed_observation_padding=delayed_observation_padding)
+        strip_singleton_obs_buffer_dim=strip_singleton_obs_buffer_dim)
     self._max_reset_attempts = max_reset_attempts
     self._reset_next_step = True
 
@@ -443,7 +421,7 @@ class Environment(_CommonEnvironment, dm_env.Environment):
     if task_reward_spec is not None:
       return task_reward_spec
     else:
-      return super().reward_spec()
+      return super(Environment, self).reward_spec()
 
   def discount_spec(self):
     """Describes the discount returned by this environment.
@@ -460,7 +438,7 @@ class Environment(_CommonEnvironment, dm_env.Environment):
     if task_discount_spec is not None:
       return task_discount_spec
     else:
-      return super().discount_spec()
+      return super(Environment, self).discount_spec()
 
   def observation_spec(self):
     """Returns the observation specification for this environment.

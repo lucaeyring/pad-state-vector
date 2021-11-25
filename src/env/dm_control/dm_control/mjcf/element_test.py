@@ -15,6 +15,10 @@
 
 """Tests for `dm_control.mjcf.element`."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import copy
 import hashlib
 import itertools
@@ -22,6 +26,7 @@ import os
 import sys
 import traceback
 
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control import mjcf
@@ -31,6 +36,8 @@ from dm_control.mjcf import parser
 from dm_control.mujoco.wrapper import util
 import lxml
 import numpy as np
+import six
+from six.moves import range
 
 etree = lxml.etree
 
@@ -69,7 +76,7 @@ class ElementTest(parameterized.TestCase):
     self.assertEqual(mjcf_element.parent, parent)
     self.assertEqual(mjcf_element.root, root)
     self.assertEqual(mjcf_element.namescope, root.namescope)
-    for child_name, child_spec in mjcf_element.spec.children.items():
+    for child_name, child_spec in six.iteritems(mjcf_element.spec.children):
       if not (child_spec.repeated or child_spec.on_demand):
         child = getattr(mjcf_element, child_name)
         self.assertEqual(child.tag, child_name)
@@ -103,7 +110,7 @@ class ElementTest(parameterized.TestCase):
                        expected_values=None, recursive=False):
     attributes = mjcf_element.get_attributes()
     self.assertNotIn('class', attributes)
-    for attribute_name in mjcf_element.spec.attributes.keys():
+    for attribute_name in six.iterkeys(mjcf_element.spec.attributes):
       if attribute_name == 'class':
         attribute_name = 'dclass'
       self.assertHasAttr(mjcf_element, attribute_name)
@@ -130,13 +137,14 @@ class ElementTest(parameterized.TestCase):
 
   def _test_children(self, mjcf_element, recursive=False):
     children = mjcf_element.all_children()
-    for child_name, child_spec in mjcf_element.spec.children.items():
+    for child_name, child_spec in six.iteritems(mjcf_element.spec.children):
       if not (child_spec.repeated or child_spec.on_demand):
         self.assertHasAttr(mjcf_element, child_name)
         self.assertIn(child_name, dir(mjcf_element))
         child = getattr(mjcf_element, child_name)
         self.assertIn(child, children)
-        with self.assertRaisesRegex(AttributeError, 'can\'t set attribute'):
+        with six.assertRaisesRegex(
+            self, AttributeError, 'can\'t set attribute'):
           setattr(mjcf_element, child_name, 'value')
         if recursive:
           self._test_children(child, recursive=True)
@@ -151,11 +159,14 @@ class ElementTest(parameterized.TestCase):
     def test_invalid_attr_recursively(mjcf_element):
       self.assertNotHasAttr(mjcf_element, invalid_attrib_name)
       self.assertNotIn(invalid_attrib_name, dir(mjcf_element))
-      with self.assertRaisesRegex(AttributeError, 'object has no attribute'):
+      with six.assertRaisesRegex(
+          self, AttributeError, 'object has no attribute'):
         getattr(mjcf_element, invalid_attrib_name)
-      with self.assertRaisesRegex(AttributeError, 'can\'t set attribute'):
+      with six.assertRaisesRegex(
+          self, AttributeError, 'can\'t set attribute'):
         setattr(mjcf_element, invalid_attrib_name, 'value')
-      with self.assertRaisesRegex(AttributeError, 'object has no attribute'):
+      with six.assertRaisesRegex(
+          self, AttributeError, 'object has no attribute'):
         delattr(mjcf_element, invalid_attrib_name)
       for child in mjcf_element.all_children():
         test_invalid_attr_recursively(child)
@@ -187,20 +198,24 @@ class ElementTest(parameterized.TestCase):
                           expected_values=body_foo_inertial_attributes)
     self._test_children(body_foo_inertial)
 
-    with self.assertRaisesRegex(ValueError, '<inertial> child already exists'):
+    with six.assertRaisesRegex(
+        self, ValueError, '<inertial> child already exists'):
       body_foo.add('inertial', **body_foo_inertial_attributes)
 
     # non-repeated, non-on-demand elements
-    with self.assertRaisesRegex(ValueError, '<compiler> child already exists'):
+    with six.assertRaisesRegex(
+        self, ValueError, '<compiler> child already exists'):
       mujoco.add('compiler')
     self.assertIsNotNone(mujoco.compiler)
-    with self.assertRaisesRegex(ValueError, '<default> child already exists'):
+    with six.assertRaisesRegex(
+        self, ValueError, '<default> child already exists'):
       mujoco.add('default')
     self.assertIsNotNone(mujoco.default)
 
   def testAddWithInvalidAttribute(self):
     mujoco = element.RootElement(model='test')
-    with self.assertRaisesRegex(AttributeError, 'not a valid attribute'):
+    with six.assertRaisesRegex(
+        self, AttributeError, 'not a valid attribute'):
       mujoco.worldbody.add('body', name='foo', invalid_attribute='some_value')
     self.assertFalse(mujoco.worldbody.body)
     self.assertIsNone(mujoco.worldbody.find('body', 'foo'))
@@ -320,7 +335,8 @@ class ElementTest(parameterized.TestCase):
     subsubmujoco = copy.copy(mujoco)
     subsubmujoco.model = 'subsubmodel'
 
-    with self.assertRaisesRegex(ValueError, 'Cannot merge a model to itself'):
+    with six.assertRaisesRegex(
+        self, ValueError, 'Cannot merge a model to itself'):
       mujoco.attach(mujoco)
 
     attachment_site = submujoco.find('site', 'attachment')
@@ -341,15 +357,15 @@ class ElementTest(parameterized.TestCase):
     self.assertEqual(subsubmodel_frame.all_children(),
                      subsubmujoco.worldbody.all_children())
 
-    with self.assertRaisesRegex(ValueError, 'already attached elsewhere'):
+    with six.assertRaisesRegex(self, ValueError, 'already attached elsewhere'):
       mujoco.attach(subsubmujoco)
 
-    with self.assertRaisesRegex(ValueError, 'Expected a mjcf.RootElement'):
+    with six.assertRaisesRegex(self, ValueError, 'Expected a mjcf.RootElement'):
       mujoco.attach(submujoco.contact)
 
     submujoco.option.flag.gravity = 'enable'
-    with self.assertRaisesRegex(
-        ValueError, 'Conflicting values for attribute `gravity`'):
+    with six.assertRaisesRegex(self, ValueError,
+                               'Conflicting values for attribute `gravity`'):
       mujoco.attach(submujoco)
     submujoco.option.flag.gravity = 'disable'
 
@@ -490,7 +506,7 @@ class ElementTest(parameterized.TestCase):
         'name="submodel/subsubmodel/">')
     self.assertEqual(subsubmujoco_frame.full_identifier,
                      'submodel/subsubmodel/')
-    with self.assertRaisesRegex(AttributeError, 'not a valid child'):
+    with six.assertRaisesRegex(self, AttributeError, 'not a valid child'):
       subsubmujoco_frame.add('freejoint')
     hinge_joint = subsubmujoco_frame.add('joint', type='hinge', axis=[1, 2, 3])
     hinge_joint_xml = hinge_joint.to_xml_string(
@@ -555,8 +571,8 @@ class ElementTest(parameterized.TestCase):
     submujoco.find('site', 'attachment').attach(subsubmujoco)
     mujoco.attach(submujoco)
 
-    with self.assertRaisesRegex(
-        ValueError, r'use remove\(affect_attachments=True\)'):
+    with six.assertRaisesRegex(self, ValueError,
+                               r'use remove\(affect_attachments=True\)'):
       del mujoco.option
 
     mujoco.option.remove(affect_attachments=True)
@@ -568,8 +584,8 @@ class ElementTest(parameterized.TestCase):
       self.assertEqual(
           root.option.flag.to_xml_string(pretty_print=False), '<flag/>')
 
-    with self.assertRaisesRegex(
-        ValueError, r'use remove\(affect_attachments=True\)'):
+    with six.assertRaisesRegex(self, ValueError,
+                               r'use remove\(affect_attachments=True\)'):
       del mujoco.contact
 
     mujoco.contact.remove(affect_attachments=True)
@@ -649,9 +665,9 @@ class ElementTest(parameterized.TestCase):
 
   def testFindInvalidNamespace(self):
     mjcf_model = mjcf.RootElement()
-    with self.assertRaisesRegex(ValueError, 'not a valid namespace'):
+    with six.assertRaisesRegex(self, ValueError, 'not a valid namespace'):
       mjcf_model.find('jiont', 'foo')
-    with self.assertRaisesRegex(ValueError, 'not a valid namespace'):
+    with six.assertRaisesRegex(self, ValueError, 'not a valid namespace'):
       mjcf_model.find_all('goem')
 
   def testEnterScope(self):
@@ -767,18 +783,24 @@ class ElementTest(parameterized.TestCase):
   def testDictLikeInterface(self):
     mujoco = element.RootElement(model='test')
     elem = mujoco.worldbody.add('body')
-    with self.assertRaisesRegex(TypeError, 'object is not subscriptable'):
+    if six.PY3:
+      subscript_error_regex = 'object is not subscriptable'
+    else:
+      subscript_error_regex = 'no attribute \'__getitem__\''
+    with six.assertRaisesRegex(self, TypeError, subscript_error_regex):
       _ = elem['foo']
-    with self.assertRaisesRegex(TypeError, 'does not support item assignment'):
+    with six.assertRaisesRegex(
+        self, TypeError, 'does not support item assignment'):
       elem['foo'] = 'bar'
-    with self.assertRaisesRegex(TypeError, 'does not support item deletion'):
+    with six.assertRaisesRegex(
+        self, TypeError, 'does not support item deletion'):
       del elem['foo']
 
   def testSetAndGetAttributes(self):
     mujoco = element.RootElement(model='test')
 
     foo_attribs = dict(name='foo', pos=[1, 2, 3, 4], quat=[0, 1, 0, 0])
-    with self.assertRaisesRegex(ValueError, 'no more than 3 entries'):
+    with six.assertRaisesRegex(self, ValueError, 'no more than 3 entries'):
       foo = mujoco.worldbody.add('body', **foo_attribs)
 
     # failed creationg should not cause the identifier 'foo' to be registered
@@ -791,7 +813,7 @@ class ElementTest(parameterized.TestCase):
     foo_attribs['name'] = 'bar'
     foo_attribs['pos'] = [1, 2, 3, 4]
     foo_attribs['childclass'] = 'klass'
-    with self.assertRaisesRegex(ValueError, 'no more than 3 entries'):
+    with six.assertRaisesRegex(self, ValueError, 'no more than 3 entries'):
       foo.set_attributes(**foo_attribs)
 
     # failed assignment should not cause the identifier 'bar' to be registered
@@ -802,10 +824,10 @@ class ElementTest(parameterized.TestCase):
     self._test_attributes(foo, expected_values=foo_attribs)
 
     actual_foo_attribs = foo.get_attributes()
-    for attribute_name, value in foo_attribs.items():
+    for attribute_name, value in six.iteritems(foo_attribs):
       np.testing.assert_array_equal(
           actual_foo_attribs.pop(attribute_name), value)
-    for value in actual_foo_attribs.values():
+    for value in six.itervalues(actual_foo_attribs):
       self.assertIsNone(value)
 
   def testResolveReferences(self):
@@ -887,7 +909,7 @@ class ElementTest(parameterized.TestCase):
 
     mujoco = parser.from_xml_string(xml_string=xml_string, assets=assets)
     expected_assets = {}
-    for path, contents in assets.items():
+    for path, contents in six.iteritems(assets):
       _, filename = os.path.split(path)
       prefix, extension = os.path.splitext(filename)
       if extension != '.xml':

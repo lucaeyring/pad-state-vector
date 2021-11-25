@@ -15,18 +15,29 @@
 
 """Misc helper functions needed by autowrap.py."""
 
-import builtins
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import keyword
 import re
 
+import six
+from six.moves import builtins
+
 _MJXMACRO_SUFFIX = "_POINTERS"
-_PYTHON_RESERVED_KEYWORDS = frozenset(
-    keyword.kwlist + dir(builtins) + ["buffer"])
+_PYTHON_RESERVED_KEYWORDS = set(keyword.kwlist + dir(builtins))
+if not six.PY2:
+  _PYTHON_RESERVED_KEYWORDS.add("buffer")
 
 
-class Indenter:
+class Indenter(object):
   r"""Callable context manager for tracking string indentation levels.
+
+  Args:
+    level: The initial indentation level.
+    indent_str: The string used to indent each line.
 
   Example usage:
 
@@ -44,12 +55,6 @@ class Indenter:
   """
 
   def __init__(self, level=0, indent_str="  "):
-    """Initializes an Indenter.
-
-    Args:
-      level: The initial indentation level.
-      indent_str: The string used to indent each line.
-    """
     self.indent_str = indent_str
     self.level = level
 
@@ -76,7 +81,7 @@ class UniqueOrderedDict(collections.OrderedDict):
   def __setitem__(self, k, v):
     if k in self:
       raise ValueError("Key '{}' already exists.".format(k))
-    super().__setitem__(k, v)
+    super(UniqueOrderedDict, self).__setitem__(k, v)
 
 
 def macro_struct_name(name, suffix=None):
@@ -105,7 +110,7 @@ def mangle_struct_typename(s):
 
 def mangle_comment(s):
   """Strip extraneous whitespace, add full-stops at end of each line."""
-  if not isinstance(s, str):
+  if not isinstance(s, six.string_types):
     return "\n".join(mangle_comment(line) for line in s)
   elif not s:
     return "<no header comment found>."

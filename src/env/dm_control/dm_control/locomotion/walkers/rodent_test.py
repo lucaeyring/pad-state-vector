@@ -14,6 +14,9 @@
 # ============================================================================
 """Tests for the Rodent."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -23,7 +26,9 @@ from dm_control.composer.observation.observable import base as observable_base
 from dm_control.locomotion.arenas import corridors as corr_arenas
 from dm_control.locomotion.tasks import corridors as corr_tasks
 from dm_control.locomotion.walkers import rodent
+
 import numpy as np
+from six.moves import range
 
 _CONTROL_TIMESTEP = .02
 _PHYSICS_TIMESTEP = 0.001
@@ -71,7 +76,7 @@ class RatTest(parameterized.TestCase):
   @parameterized.parameters([
       'actuators',
       'bodies',
-      'mocap_tracking_bodies',
+      'mocap_bodies',
       'end_effectors',
       'mocap_joints',
       'observable_joints',
@@ -106,18 +111,6 @@ class RatTest(parameterized.TestCase):
     walker = rodent.Rat()
     for item in walker.observables.proprioception:
       self.assertIsInstance(item, observable_base.Observable)
-
-  def test_can_create_two_rats(self):
-    rat1 = rodent.Rat(name='rat1')
-    rat2 = rodent.Rat(name='rat2')
-    arena = corr_arenas.EmptyCorridor()
-    arena.add_free_entity(rat1)
-    arena.add_free_entity(rat2)
-    mjcf.Physics.from_mjcf_model(arena.mjcf_model)  # Should not raise an error.
-
-    rat1.mjcf_model.model = 'rat3'
-    rat2.mjcf_model.model = 'rat4'
-    mjcf.Physics.from_mjcf_model(arena.mjcf_model)  # Should not raise an error.
 
 if __name__ == '__main__':
   absltest.main()

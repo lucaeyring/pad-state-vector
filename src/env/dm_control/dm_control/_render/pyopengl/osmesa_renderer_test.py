@@ -15,8 +15,13 @@
 
 """Tests for OSMesaContext."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import unittest
 
+# Internal dependencies.
 from absl.testing import absltest
 from dm_control import _render
 import mock

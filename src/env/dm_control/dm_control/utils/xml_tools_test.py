@@ -15,11 +15,15 @@
 
 """Tests for utils.xml_tools."""
 
-import io
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+# Internal dependencies.
 from absl.testing import absltest
 from dm_control.utils import xml_tools
 import lxml
+import six
 
 etree = lxml.etree
 
@@ -41,7 +45,7 @@ class XmlHelperTest(absltest.TestCase):
         <content></content>
       </head>
     </root>"""
-    tree = xml_tools.parse(io.StringIO(xml_str))
+    tree = xml_tools.parse(six.StringIO(xml_str))
     self.assertEqual(b'<root>\n  <head>\n    <content/>\n  </head>\n</root>\n',
                      etree.tostring(tree, pretty_print=True))
 
@@ -55,7 +59,7 @@ class XmlHelperTest(absltest.TestCase):
         <geom name='geom_name'/>
       </world>
     </root>"""
-    tree = xml_tools.parse(io.StringIO(xml_str))
+    tree = xml_tools.parse(six.StringIO(xml_str))
     world = xml_tools.find_element(root=tree, tag='world', name='world_name')
     self.assertEqual(world.tag, 'world')
     self.assertEqual(world.attrib['name'], 'world_name')
@@ -64,10 +68,10 @@ class XmlHelperTest(absltest.TestCase):
     self.assertEqual(geom.tag, 'geom')
     self.assertEqual(geom.attrib['name'], 'geom_name')
 
-    with self.assertRaisesRegex(ValueError, 'Element with tag'):
+    with six.assertRaisesRegex(self, ValueError, 'Element with tag'):
       xml_tools.find_element(root=tree, tag='does_not_exist', name='name')
 
-    with self.assertRaisesRegex(ValueError, 'Element with tag'):
+    with six.assertRaisesRegex(self, ValueError, 'Element with tag'):
       xml_tools.find_element(root=tree, tag='world', name='does_not_exist')
 
 

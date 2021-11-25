@@ -14,6 +14,10 @@
 # ============================================================================
 """A Rodent walker."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 import re
 
@@ -63,8 +67,6 @@ class Rat(legacy_base.Walker):
   def _build(self,
              params=None,
              name='walker',
-             torque_actuators=False,
-             foot_mods=False,
              initializer=None):
     self.params = params
     self._mjcf_root = mjcf.from_path(_XML_PATH)
@@ -72,19 +74,7 @@ class Rat(legacy_base.Walker):
       self._mjcf_root.model = name
 
     self.body_sites = []
-    super()._build(initializer=initializer)
-
-    # modify actuators
-    if torque_actuators:
-      for actuator in self._mjcf_root.find_all('actuator'):
-        actuator.gainprm = [actuator.forcerange[1]]
-        del actuator.biastype
-        del actuator.biasprm
-
-    # modify ankle and toe limits
-    if foot_mods:
-      self._mjcf_root.find('default', 'ankle').joint.range = [-0.1, 2.]
-      self._mjcf_root.find('default', 'toe').joint.range = [-0.7, 0.87]
+    super(Rat, self)._build(initializer=initializer)
 
   @property
   def upright_pose(self):
@@ -131,11 +121,7 @@ class Rat(legacy_base.Walker):
     """Return ground contact geoms."""
     return tuple(
         self._mjcf_root.find('body', 'foot_L').find_all('geom') +
-        self._mjcf_root.find('body', 'foot_R').find_all('geom') +
-        self._mjcf_root.find('body', 'hand_L').find_all('geom') +
-        self._mjcf_root.find('body', 'hand_R').find_all('geom') +
-        self._mjcf_root.find('body', 'vertebra_C1').find_all('geom')
-        )
+        self._mjcf_root.find('body', 'foot_R').find_all('geom'))
 
   @composer.cached_property
   def standing_height(self):
@@ -176,7 +162,7 @@ class Rat(legacy_base.Walker):
     return tuple(self._mjcf_root.find_all('body'))
 
   @composer.cached_property
-  def mocap_tracking_bodies(self):
+  def mocap_bodies(self):
     """Return bodies for mocap comparison."""
     return tuple(body for body in self._mjcf_root.find_all('body')
                  if not re.match(r'(vertebra|hand|toe)', body.name))

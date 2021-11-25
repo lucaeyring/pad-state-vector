@@ -14,6 +14,10 @@
 # ============================================================================
 """Viewer application module."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import _render
@@ -176,7 +180,7 @@ class ReloadParams(collections.namedtuple(
   """Parameters of a reload request."""
 
 
-class Application:
+class Application(object):
   """Viewer application."""
 
   def __init__(self, title='Explorer', width=1024, height=768):

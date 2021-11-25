@@ -15,10 +15,17 @@
 
 """Tests for observation.obs_buffer."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control.composer.observation import obs_buffer
 import numpy as np
+from six.moves import range
 
 
 def _generate_constant_schedule(update_timestep, delay,

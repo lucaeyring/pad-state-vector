@@ -15,11 +15,17 @@
 
 """Initializers for the locomotion walkers."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import numpy as np
+import six
 
 
-class WalkerInitializer(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class WalkerInitializer(object):
   """The abstract base class for a walker initializer."""
 
   @abc.abstractmethod
@@ -34,16 +40,16 @@ class UprightInitializer(WalkerInitializer):
     all_joints_binding = physics.bind(walker.mjcf_model.find_all('joint'))
     qpos, xpos, xquat = walker.upright_pose
     if qpos is None:
-      walker.configure_joints(physics, all_joints_binding.qpos0)
+      all_joints_binding.qpos = all_joints_binding.qpos0
     else:
-      walker.configure_joints(physics, qpos)
+      all_joints_binding.qpos = qpos
     walker.set_pose(physics, position=xpos, quaternion=xquat)
     walker.set_velocity(
         physics, velocity=np.zeros(3), angular_velocity=np.zeros(3))
 
 
 class RandomlySampledInitializer(WalkerInitializer):
-  """An initializer that random selects between many initializers."""
+  """Initializer that random selects between many initializers."""
 
   def __init__(self, initializers):
     self._initializers = initializers
@@ -53,13 +59,3 @@ class RandomlySampledInitializer(WalkerInitializer):
     random_initalizer_idx = np.random.randint(0, self.num_initializers)
     self._initializers[random_initalizer_idx].initialize_pose(
         physics, walker, random_state)
-
-
-class NoOpInitializer(WalkerInitializer):
-  """An initializer that does nothing."""
-
-  def initialize_pose(self, physics, walker, random_state):
-    pass
-
-
-

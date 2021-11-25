@@ -15,32 +15,27 @@
 
 """Tests for base variation operations."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import operator
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control.composer import variation
 from dm_control.composer.variation import deterministic
-import numpy as np
 
 
 class VariationTest(parameterized.TestCase):
 
   def setUp(self):
-    super().setUp()
     self.value_1 = 3
     self.variation_1 = deterministic.Constant(self.value_1)
     self.value_2 = 5
     self.variation_2 = deterministic.Constant(self.value_2)
 
-  @parameterized.parameters(['neg'])
-  def test_unary_operator(self, name):
-    func = getattr(operator, name)
-    self.assertEqual(
-        variation.evaluate(func(self.variation_1)),
-        func(self.value_1))
-
   @parameterized.parameters(['add', 'sub', 'mul', 'truediv', 'floordiv', 'pow'])
-  def test_binary_operator(self, name):
+  def test_operator(self, name):
     func = getattr(operator, name)
     self.assertEqual(
         variation.evaluate(func(self.value_1, self.variation_2)),
@@ -52,11 +47,6 @@ class VariationTest(parameterized.TestCase):
         variation.evaluate(func(self.variation_1, self.variation_2)),
         func(self.value_1, self.value_2))
 
-  def test_getitem(self):
-    value = deterministic.Constant(np.array([4, 5, 6, 7, 8]))
-    np.testing.assert_array_equal(
-        variation.evaluate(value[[3, 1]]),
-        [7, 5])
 
 if __name__ == '__main__':
   absltest.main()

@@ -15,26 +15,27 @@
 
 """Classes representing various MJCF attribute data types."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import collections
 import hashlib
-import io
 import os
 
 from dm_control.mjcf import base
 from dm_control.mjcf import constants
 from dm_control.mjcf import debugging
-from dm_control.mjcf import skin
 from dm_control.mujoco.wrapper import util
 import numpy as np
-
-# Copybara placeholder for internal file handling dependency.
+import six
 
 from dm_control.utils import io as resources
 
 
 _INVALID_REFERENCE_TYPE = (
-    'Reference should be an MJCF Element whose type is {valid_type!r}: '
+    'Reference should be an MJCF Element whose type is one of {valid_types!r}: '
     'got {actual_type!r}.')
 
 _MESH_EXTENSIONS = ('.stl', '.msh')
@@ -45,7 +46,8 @@ _INVALID_MESH_EXTENSION = (
     .format(_MESH_EXTENSIONS))
 
 
-class _Attribute(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class _Attribute(object):
   """Abstract base class for MJCF attribute data types."""
 
   def __init__(self, name, required, parent, value,
@@ -164,8 +166,8 @@ class Keyword(_Attribute):
                conflict_allowed, conflict_behavior, valid_values):
     self._valid_values = collections.OrderedDict(
         (value.lower(), value) for value in valid_values)
-    super().__init__(name, required, parent, value, conflict_allowed,
-                     conflict_behavior)
+    super(Keyword, self).__init__(
+        name, required, parent, value, conflict_allowed, conflict_behavior)
 
   def _assign(self, value):
     if not value:
@@ -189,8 +191,8 @@ class Array(_Attribute):
                conflict_allowed, conflict_behavior, length, dtype):
     self._length = length
     self._dtype = dtype
-    super().__init__(name, required, parent, value, conflict_allowed,
-                     conflict_behavior)
+    super(Array, self).__init__(name, required, parent, value,
+                                conflict_allowed, conflict_behavior)
 
   def _assign(self, value):
     self._value = self._check_shape(np.array(value, dtype=self._dtype))
@@ -202,7 +204,7 @@ class Array(_Attribute):
     if self._value is None:
       return None
     else:
-      out = io.BytesIO()
+      out = six.BytesIO()
       # 17 decimal digits is sufficient to represent a double float without loss
       # of precision.
       # https://en.wikipedia.org/wiki/IEEE_754#Character_representation
@@ -271,8 +273,8 @@ class Reference(_Attribute):
   def __init__(self, name, required, parent, value,
                conflict_allowed, conflict_behavior, reference_namespace):
     self._reference_namespace = reference_namespace
-    super().__init__(name, required, parent, value, conflict_allowed,
-                     conflict_behavior)
+    super(Reference, self).__init__(
+        name, required, parent, value, conflict_allowed, conflict_behavior)
 
   def _check_dead_reference(self):
     if isinstance(self._value, base.Element) and self._value.is_removed:
@@ -281,7 +283,7 @@ class Reference(_Attribute):
   @property
   def value(self):
     self._check_dead_reference()
-    return super().value
+    return super(Reference, self).value
 
   @value.setter
   def value(self, new_value):
@@ -290,13 +292,12 @@ class Reference(_Attribute):
   @property
   def reference_namespace(self):
     if isinstance(self._reference_namespace, _Attribute):
-      return constants.INDIRECT_REFERENCE_ATTRIB.get(
-          self._reference_namespace.value, self._reference_namespace.value)
+      return self._reference_namespace.value
     else:
       return self._reference_namespace
 
   def _assign(self, value):
-    if not isinstance(value, (base.Element, str)):
+    if not isinstance(value, (base.Element, six.string_types)):
       raise ValueError(
           'Expect a string or `mjcf.Element` value: got {}'.format(value))
     elif not value:
@@ -305,9 +306,16 @@ class Reference(_Attribute):
       if isinstance(value, base.Element):
         value_namespace = (
             value.spec.namespace.split(constants.NAMESPACE_SEPARATOR)[0])
-        if value_namespace != self.reference_namespace:
+        if isinstance(self._reference_namespace, _Attribute):
+          try:
+            self._reference_namespace.value = value_namespace
+          except ValueError:
+            raise ValueError(_INVALID_REFERENCE_TYPE.format(
+                valid_types=self._reference_namespace.valid_values,
+                actual_type=value_namespace))
+        elif value_namespace != self._reference_namespace:
           raise ValueError(_INVALID_REFERENCE_TYPE.format(
-              valid_type=self.reference_namespace,
+              valid_types=[self._reference_namespace],
               actual_type=value_namespace))
       self._value = value
 
@@ -370,8 +378,8 @@ class BasePath(_Attribute):
   def __init__(self, name, required, parent, value,
                conflict_allowed, conflict_behavior, path_namespace):
     self._path_namespace = path_namespace
-    super().__init__(name, required, parent, value, conflict_allowed,
-                     conflict_behavior)
+    super(BasePath, self).__init__(
+        name, required, parent, value, conflict_allowed, conflict_behavior)
 
   def _assign(self, value):
     if not isinstance(value, str):
@@ -391,12 +399,20 @@ class BasePath(_Attribute):
     return None
 
 
-class BaseAsset:
-  """Base class for binary assets."""
+class Asset(object):
+  """Class representing a binary asset."""
 
-  __slots__ = ('extension', 'prefix')
+  __slots__ = ('contents', 'extension', 'prefix')
 
-  def __init__(self, extension, prefix=''):
+  def __init__(self, contents, extension, prefix=''):
+    """Initializes a new `Asset`.
+
+    Args:
+      contents: The contents of the file as a bytestring.
+      extension: A string specifying the file extension (e.g. '.png', '.stl').
+      prefix: (optional) A prefix applied to the filename given in MuJoCo's VFS.
+    """
+    self.contents = contents
     self.extension = extension
     self.prefix = prefix
 
@@ -423,59 +439,21 @@ class BaseAsset:
     return filename + self.extension
 
 
-class Asset(BaseAsset):
-  """Class representing a binary asset."""
-
-  __slots__ = ('contents',)
-
-  def __init__(self, contents, extension, prefix=''):
-    """Initializes a new `Asset`.
-
-    Args:
-      contents: The contents of the file as a bytestring.
-      extension: A string specifying the file extension (e.g. '.png', '.stl').
-      prefix: (optional) A prefix applied to the filename given in MuJoCo's VFS.
-    """
-    self.contents = contents
-    super().__init__(extension, prefix)
-
-
-class SkinAsset(BaseAsset):
-  """Class representing a binary asset corresponding to a skin."""
-
-  __slots__ = ('skin', 'parent', '_cached_revision', '_cached_contents')
-
-  def __init__(self, contents, parent, extension, prefix=''):
-    self.skin = skin.parse(
-        contents, lambda body_name: parent.root.find('body', body_name))
-    self.parent = parent
-    self._cached_revision = -1
-    self._cached_contents = None
-    super().__init__(extension, prefix)
-
-  @property
-  def contents(self):
-    if self._cached_revision < self.parent.namescope.revision:
-      self._cached_contents = skin.serialize(self.skin)
-      self._cached_revision = self.parent.namescope.revision
-    return self._cached_contents
-
-
 class File(_Attribute):
   """Attribute representing an asset file."""
 
   def __init__(self, name, required, parent, value,
                conflict_allowed, conflict_behavior, path_namespace):
     self._path_namespace = path_namespace
-    super().__init__(name, required, parent, value, conflict_allowed,
-                     conflict_behavior)
+    super(File, self).__init__(name, required, parent, value,
+                               conflict_allowed, conflict_behavior)
     parent.namescope.files.add(self)
 
   def _assign(self, value):
     if not value:
       self.clear()
     else:
-      if isinstance(value, str):
+      if isinstance(value, six.string_types):
         asset = self._get_asset_from_path(value)
       elif isinstance(value, Asset):
         asset = value
@@ -506,13 +484,9 @@ class File(_Attribute):
       except KeyError:
         pass
       path_parts.append(path)
-      full_path = os.path.join(*path_parts)  # pylint: disable=no-value-for-parameter
+      full_path = os.path.join(*path_parts)
       contents = resources.GetResource(full_path)
-    if self._parent.tag == constants.SKIN:
-      return SkinAsset(contents=contents, parent=self._parent,
-                       extension=extension, prefix=filename)
-    else:
-      return Asset(contents=contents, extension=extension, prefix=filename)
+    return Asset(contents=contents, extension=extension, prefix=filename)
 
   def _validate_extension(self, extension):
     if self._parent.tag == constants.MESH:

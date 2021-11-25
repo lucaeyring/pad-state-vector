@@ -15,22 +15,28 @@
 
 """Python representations of C declarations."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import textwrap
 from dm_control.autowrap import codegen_util
 from dm_control.autowrap import header_parsing
+import six
 
 
-class CDeclBase:
+class CDeclBase(object):
   """Base class for Python representations of C declarations."""
 
   def __init__(self, **attrs):
     self._attrs = attrs
-    for k, v in attrs.items():
+    for k, v in six.iteritems(attrs):
       setattr(self, k, v)
 
   def __repr__(self):
     """Pretty string representation."""
-    attr_str = ", ".join(f"{k}={v!r}" for k, v in self._attrs.items())
+    attr_str = ", ".join("{0}={1!r}".format(k, v)
+                         for k, v in six.iteritems(self._attrs))
     return "{0}({1})".format(type(self).__name__, attr_str)
 
   @property
@@ -66,14 +72,13 @@ class Struct(CDeclBase):
 
   def __init__(self, name, typename, members, sub_structs, comment="",
                parent=None, is_const=None):
-    super().__init__(
-        name=name,
-        typename=typename,
-        members=members,
-        sub_structs=sub_structs,
-        comment=comment,
-        parent=parent,
-        is_const=is_const)
+    super(Struct, self).__init__(name=name,
+                                 typename=typename,
+                                 members=members,
+                                 sub_structs=sub_structs,
+                                 comment=comment,
+                                 parent=parent,
+                                 is_const=is_const)
 
   @property
   def ctypes_decl(self):
@@ -83,7 +88,7 @@ class Struct(CDeclBase):
     lines.append(textwrap.dedent("""
     class {0.ctypes_typename}(ctypes.Structure):
       \"\"\"{0.docstring}\"\"\"""".format(self)))
-    anonymous_fields = [member.name for member in self.members.values()
+    anonymous_fields = [member.name for member in six.itervalues(self.members)
                         if isinstance(member, AnonymousUnion)]
     with indent:
       if anonymous_fields:
@@ -98,7 +103,7 @@ class Struct(CDeclBase):
         lines.append(indent("_fields_ = ["))
         with indent:
           with indent:
-            for member in self.members.values():
+            for member in six.itervalues(self.members):
               lines.append(indent(member.ctypes_field_decl + ","))
         lines.append(indent("]\n"))
     return "\n".join(lines)
@@ -125,9 +130,9 @@ class Struct(CDeclBase):
     class {0.wrapper_name}(util.WrapperBase):
       \"\"\"{0.docstring}\"\"\"""".format(self))]
     with indent:
-      for member in self.members.values():
+      for member in six.itervalues(self.members):
         if isinstance(member, AnonymousUnion):
-          for submember in member.members.values():
+          for submember in six.itervalues(member.members):
             lines.append(indent(submember.getters_setters))
         else:
           lines.append(indent(member.getters_setters))
@@ -154,12 +159,11 @@ class AnonymousUnion(CDeclBase):
   """Anonymous union declaration."""
 
   def __init__(self, name, members, sub_structs, comment="", parent=None):
-    super().__init__(
-        name=name,
-        members=members,
-        sub_structs=sub_structs,
-        comment=comment,
-        parent=parent)
+    super(AnonymousUnion, self).__init__(name=name,
+                                         members=members,
+                                         sub_structs=sub_structs,
+                                         comment=comment,
+                                         parent=parent)
 
   @property
   def ctypes_decl(self):
@@ -174,7 +178,7 @@ class AnonymousUnion(CDeclBase):
         lines.append(indent("_fields_ = ["))
         with indent:
           with indent:
-            for member in self.members.values():
+            for member in six.itervalues(self.members):
               lines.append(indent(member.ctypes_field_decl + ","))
         lines.append(indent("]\n"))
     return "\n".join(lines)
@@ -194,12 +198,11 @@ class ScalarPrimitive(CDeclBase):
   """A scalar value corresponding to a C primitive type."""
 
   def __init__(self, name, typename, comment="", parent=None, is_const=None):
-    super().__init__(
-        name=name,
-        typename=typename,
-        comment=comment,
-        parent=parent,
-        is_const=is_const)
+    super(ScalarPrimitive, self).__init__(name=name,
+                                          typename=typename,
+                                          comment=comment,
+                                          parent=parent,
+                                          is_const=is_const)
 
   @property
   def ctypes_field_decl(self):
@@ -229,12 +232,11 @@ class ScalarPrimitivePtr(CDeclBase):
   """Pointer to a ScalarPrimitive."""
 
   def __init__(self, name, typename, comment="", parent=None, is_const=None):
-    super().__init__(
-        name=name,
-        typename=typename,
-        comment=comment,
-        parent=parent,
-        is_const=is_const)
+    super(ScalarPrimitivePtr, self).__init__(name=name,
+                                             typename=typename,
+                                             comment=comment,
+                                             parent=parent,
+                                             is_const=is_const)
 
   @property
   def ctypes_field_decl(self):
@@ -271,13 +273,12 @@ class StaticPtrArray(CDeclBase):
 
   def __init__(self, name, typename, shape, comment="", parent=None,
                is_const=None):
-    super().__init__(
-        name=name,
-        typename=typename,
-        shape=shape,
-        comment=comment,
-        parent=parent,
-        is_const=is_const)
+    super(StaticPtrArray, self).__init__(name=name,
+                                         typename=typename,
+                                         shape=shape,
+                                         comment=comment,
+                                         parent=parent,
+                                         is_const=is_const)
 
   @property
   def ctypes_field_decl(self):
@@ -309,13 +310,12 @@ class StaticNDArray(CDeclBase):
 
   def __init__(self, name, typename, shape, comment="", parent=None,
                is_const=None):
-    super().__init__(
-        name=name,
-        typename=typename,
-        shape=shape,
-        comment=comment,
-        parent=parent,
-        is_const=is_const)
+    super(StaticNDArray, self).__init__(name=name,
+                                        typename=typename,
+                                        shape=shape,
+                                        comment=comment,
+                                        parent=parent,
+                                        is_const=is_const)
 
   @property
   def ctypes_field_decl(self):
@@ -345,13 +345,12 @@ class DynamicNDArray(CDeclBase):
 
   def __init__(self, name, typename, shape, comment="", parent=None,
                is_const=None):
-    super().__init__(
-        name=name,
-        typename=typename,
-        shape=shape,
-        comment=comment,
-        parent=parent,
-        is_const=is_const)
+    super(DynamicNDArray, self).__init__(name=name,
+                                         typename=typename,
+                                         shape=shape,
+                                         comment=comment,
+                                         parent=parent,
+                                         is_const=is_const)
 
   @property
   def runtime_shape_str(self):
@@ -359,15 +358,11 @@ class DynamicNDArray(CDeclBase):
     rs = []
     for d in self.shape:
       # dynamically-sized dimension
-      if isinstance(d, str):
-        n = ""
-        if d.startswith("nmocap") and len(d) > len("nmocap"):
-          n = "*{}".format(d[6:])
-          d = "nmocap"
+      if isinstance(d, six.string_types):
         if self.parent and d in self.parent.members:
-          rs.append("self.{}{}".format(d, n))
+          rs.append("self.{}".format(d))
         else:
-          rs.append("self._model.{}{}".format(d, n))
+          rs.append("self._model.{}".format(d))
       # static dimension
       else:
         rs.append(str(d))
@@ -399,11 +394,10 @@ class Function(CDeclBase):
   """A function declaration including input type(s) and return type."""
 
   def __init__(self, name, arguments, return_value, comment=""):
-    super().__init__(
-        name=name,
-        arguments=arguments,
-        return_value=return_value,
-        comment=comment)
+    super(Function, self).__init__(name=name,
+                                   arguments=arguments,
+                                   return_value=return_value,
+                                   comment=comment)
 
   def ctypes_func_decl(self, cdll_name):
     """Generates a ctypes function declaration."""
@@ -415,7 +409,8 @@ class Function(CDeclBase):
       lines.append("{0}.{1}.argtypes = [".format(cdll_name, self.name))
       with indent:
         with indent:
-          lines.extend(indent(a.arg + ",") for a in self.arguments.values())
+          lines.extend(indent(a.arg + ",")
+                       for a in six.itervalues(self.arguments))
       lines.append("]")
     else:
       lines.append("{0}.{1}.argtypes = None".format(cdll_name, self.name))
@@ -435,7 +430,7 @@ class Function(CDeclBase):
     if self.arguments:
       lines.append("\nArgs:")
       with indent:
-        for a in self.arguments.values():
+        for a in six.itervalues(self.arguments):
           s = "{a.name}: {a.arg}{const}".format(
               a=a, const=(" <const>" if a.is_const else ""))
           lines.append(indent(s))
@@ -451,7 +446,9 @@ class StaticStringArray(CDeclBase):
   """A string array of fixed dimensions exported by MuJoCo."""
 
   def __init__(self, name, shape, symbol_name):
-    super().__init__(name=name, shape=shape, symbol_name=symbol_name)
+    super(StaticStringArray, self).__init__(name=name,
+                                            shape=shape,
+                                            symbol_name=symbol_name)
 
   def ctypes_var_decl(self, cdll_name=""):
     """Generates a ctypes export statement."""
@@ -468,9 +465,8 @@ class FunctionPtrTypedef(CDeclBase):
   """A type declaration for a C function pointer."""
 
   def __init__(self, typename, return_type, argument_types):
-    super().__init__(
-        typename=typename,
-        return_type=return_type,
+    super(FunctionPtrTypedef, self).__init__(
+        typename=typename, return_type=return_type,
         argument_types=argument_types)
 
   @property
@@ -485,11 +481,9 @@ class FunctionPtr(CDeclBase):
   """A pointer to an externally defined C function."""
 
   def __init__(self, name, symbol_name, type_name, comment=""):
-    super().__init__(
-        name=name,
-        symbol_name=symbol_name,
-        type_name=type_name,
-        comment=comment)
+    super(FunctionPtr, self).__init__(
+        name=name, symbol_name=symbol_name,
+        type_name=type_name, comment=comment)
 
   @property
   def ctypes_field_decl(self):

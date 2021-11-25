@@ -15,7 +15,13 @@
 
 """Tests to check whether methods of `mujoco.Physics` are threadsafe."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import platform
+
+# Internal dependencies.
 
 from absl.testing import absltest
 from dm_control import _render
@@ -23,6 +29,7 @@ from dm_control.mujoco import engine
 from dm_control.mujoco.testing import assets
 from dm_control.mujoco.testing import decorators
 
+from six.moves import range
 
 MODEL = assets.get_contents('cartpole.xml')
 NUM_STEPS = 10
@@ -84,7 +91,7 @@ class ThreadSafetyTest(absltest.TestCase):
     for _ in range(NUM_STEPS):
       physics.step()
       frame = physics.render(width=320, height=240, camera_id=0)
-      unique_frames.add(frame.tobytes())
+      unique_frames.add(frame.tostring())
 
     self.assertLen(unique_frames, NUM_STEPS)
 

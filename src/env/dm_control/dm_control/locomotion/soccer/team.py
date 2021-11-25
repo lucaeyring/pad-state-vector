@@ -15,17 +15,18 @@
 
 """Define teams and players participating in a match."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
+
 import enum
 
 
 class Team(enum.Enum):
   HOME = 0
   AWAY = 1
-
-
-RGBA_BLUE = [.1, .1, .8, 1.]
-RGBA_RED = [.8, .1, .1, 1.]
 
 
 Player = collections.namedtuple('Player', ['team', 'walker'])

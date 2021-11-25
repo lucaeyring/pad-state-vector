@@ -20,6 +20,10 @@ If Mujoco raises a compile error on the generated XML model, we would then be
 able to find the original source line that created the offending element.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import contextlib
 import copy
@@ -30,6 +34,7 @@ import traceback
 
 from absl import flags
 from lxml import etree
+import six
 
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean(
@@ -171,7 +176,7 @@ def freeze_current_stack_trace():
     yield
 
 
-class DebugContext:
+class DebugContext(object):
   """A helper object to store debug information for a generated XML string.
 
   This class is intended for internal use within the PyMJCF implementation.
@@ -227,7 +232,7 @@ class DebugContext:
     message instructs the user to enable it by rerunning the executable with an
     appropriate flag.
     """
-    err_type, err, tb = sys.exc_info()
+    err_type, err, stack = sys.exc_info()
     line_number_match = re.search(r'[Ll][Ii][Nn][Ee]\s*[:=]?\s*(\d+)', str(err))
     if line_number_match:
       xml_line_number = int(line_number_match.group(1))
@@ -259,7 +264,8 @@ class DebugContext:
       if xml_line:
         message_lines.append(stripped_xml_line)
 
-    raise err_type('\n'.join(message_lines)).with_traceback(tb)
+    message = '\n'.join(message_lines)
+    six.reraise(err_type, err_type(message), stack)
 
   @property
   def default_dump_dir(self):
@@ -300,12 +306,12 @@ class DebugContext:
       f.write(section_separator)
     with open(os.path.join(dump_dir, 'model.xml'), 'w') as f:
       f.write(self._xml_string)
-    for elem_id, debug_info in self._debug_info_for_element_ids.items():
+    for elem_id, debug_info in six.iteritems(self._debug_info_for_element_ids):
       with open(os.path.join(dump_dir, str(elem_id) + '.dump'), 'w') as f:
         f.write('{}:{}\n'.format(DEBUG_METADATA_PREFIX, elem_id))
         f.write(str(debug_info.element) + '\n')
         dump_stack('Element creation', debug_info.init_stack, f)
-        for attrib_name, stack in debug_info.attribute_stacks.items():
+        for attrib_name, stack in six.iteritems(debug_info.attribute_stacks):
           attrib_value = (
               debug_info.element.get_attribute_xml_string(attrib_name))
           if stack[-1] == debug_info.init_stack[-1]:
@@ -345,7 +351,7 @@ class DebugContext:
                        debug_info.init_stack[-1].filename,
                        debug_info.init_stack[-1].line_number))
 
-    for attrib_name, stack in debug_info.attribute_stacks.items():
+    for attrib_name, stack in six.iteritems(debug_info.attribute_stacks):
       attrib_value = debug_info.element.get_attribute_xml_string(attrib_name)
       if stack[-1] == debug_info.init_stack[-1]:
         if attrib_value is not None:

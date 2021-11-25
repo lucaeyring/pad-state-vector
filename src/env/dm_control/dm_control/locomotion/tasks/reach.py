@@ -14,13 +14,20 @@
 # ============================================================================
 """A (visuomotor) task consisting of reaching to targets for reward."""
 
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
-import enum
 import itertools
 
 from dm_control import composer
 from dm_control.composer.observation import observable as dm_observable
+import enum
 import numpy as np
+from six.moves import range
+from six.moves import zip
 
 DEFAULT_ALIVE_THRESHOLD = -1.0
 DEFAULT_PHYSICS_TIMESTEP = 0.005
@@ -202,7 +209,7 @@ class TwoTouch(composer.Task):
         rotate_velocity=True)
 
   def initialize_episode(self, physics, random_state):
-    super().initialize_episode(physics, random_state)
+    super(TwoTouch, self).initialize_episode(physics, random_state)
     self._respawn_walker(physics, random_state)
     self._state_logic = TwoTouchState.PRE_TOUCH
     self._discount = 1.0
@@ -215,7 +222,7 @@ class TwoTouch(composer.Task):
       target._specific_collision_geom_ids = self._hand_geomids  # pylint: disable=protected-access
 
   def before_step(self, physics, action, random_state):
-    super().before_step(physics, action, random_state)
+    super(TwoTouch, self).before_step(physics, action, random_state)
     if self._must_randomize_targets:
       self._randomize_targets(physics)
       self._must_randomize_targets = False

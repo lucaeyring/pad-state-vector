@@ -15,9 +15,13 @@
 
 """Base class for tasks in the Control Suite."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from dm_control import mujoco
 from dm_control.rl import control
+
 import numpy as np
 
 

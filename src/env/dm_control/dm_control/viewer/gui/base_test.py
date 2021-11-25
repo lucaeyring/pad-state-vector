@@ -14,6 +14,9 @@
 # ============================================================================
 """Tests for the base windowing system."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 from dm_control.viewer import user_input
@@ -37,7 +40,6 @@ _EPSILON = 1e-7
 class DoubleClickDetectorTest(absltest.TestCase):
 
   def setUp(self):
-    super().setUp()
     self.detector = base.DoubleClickDetector()
     self.double_click_event = (user_input.MOUSE_BUTTON_LEFT, user_input.PRESS)
 

@@ -14,6 +14,10 @@
 # ============================================================================
 """Tests for locomotion.tasks.random_goal_maze."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import functools
 from absl.testing import absltest
 
@@ -23,7 +27,9 @@ from dm_control.locomotion.arenas import mazes
 from dm_control.locomotion.props import target_sphere
 from dm_control.locomotion.tasks import random_goal_maze
 from dm_control.locomotion.walkers import cmu_humanoid
+
 import numpy as np
+from six.moves import range
 
 
 class RandomGoalMazeTest(absltest.TestCase):

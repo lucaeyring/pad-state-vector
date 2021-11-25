@@ -36,6 +36,10 @@
       <geom name="ball" type="sphere" size=".025" material="effector"/>
       <site name="ball" size=".005"/>
     </body>
+
+    <!-- <body name='distractor'>
+      <site name="distractor_1" type="sphere" size=".075" pos="-.2 .15 .075" material="target"/>
+    </body> -->
   </worldbody>
 
   <actuator>

@@ -14,6 +14,9 @@
 # ============================================================================
 """Tests for locomotion.tasks.escape."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl.testing import absltest
 
@@ -21,7 +24,9 @@ from dm_control import composer
 from dm_control.locomotion.arenas import bowl
 from dm_control.locomotion.tasks import escape
 from dm_control.locomotion.walkers import rodent
+
 import numpy as np
+from six.moves import range
 
 _CONTROL_TIMESTEP = .02
 _PHYSICS_TIMESTEP = 0.001

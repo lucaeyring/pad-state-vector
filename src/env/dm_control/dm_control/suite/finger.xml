@@ -44,6 +44,10 @@
       <geom name="spinner_decoration" type="cylinder" fromto="0 -.045 0 0 .045 0" size=".02" material="decoration"/>
     </body>
 
+    <!-- <body name='distractor'>
+      <geom name="distractor_1" pos=".2 .15 .075" size=".075 .075 .075" material="target"/>
+    </body> -->
+
     <site name="target" type="sphere" size=".03" pos="0 0 .4" material="target"/>
   </worldbody>
 

@@ -20,9 +20,10 @@ import copy
 
 from dm_control.composer.variation.base import Variation
 from dm_control.composer.variation.variation_values import evaluate
+import six
 
 
-class _VariationInfo:
+class _VariationInfo(object):
 
   __slots__ = ['initial_value', 'variation']
 
@@ -31,7 +32,7 @@ class _VariationInfo:
     self.variation = variation
 
 
-class MJCFVariator:
+class MJCFVariator(object):
   """Helper object for applying variations to MJCF attributes.
 
   An instance of this class remembers the original value of each MJCF attribute
@@ -52,7 +53,7 @@ class MJCFVariator:
         optionally takes the original value of an attribute and returns a
         new value.
     """
-    for attribute_name, variation in kwargs.items():
+    for attribute_name, variation in six.iteritems(kwargs):
       if variation is None and attribute_name in self._variations[element]:
         del self._variations[element][attribute_name]
       else:
@@ -66,9 +67,9 @@ class MJCFVariator:
     Args:
       random_state: A `numpy.random.RandomState` instance.
     """
-    for element, attribute_variations in self._variations.items():
+    for element, attribute_variations in six.iteritems(self._variations):
       new_values = {}
-      for attribute_name, variation_info in attribute_variations.items():
+      for attribute_name, variation_info in six.iteritems(attribute_variations):
         current_value = getattr(element, attribute_name)
         if variation_info.initial_value is None:
           variation_info.initial_value = copy.copy(current_value)
@@ -82,12 +83,12 @@ class MJCFVariator:
     self._variations.clear()
 
   def reset_initial_values(self):
-    for variations in self._variations.values():
-      for variation_info in variations.values():
+    for variations in six.itervalues(self._variations):
+      for variation_info in six.itervalues(variations):
         variation_info.initial_value = None
 
 
-class PhysicsVariator:
+class PhysicsVariator(object):
   """Helper object for applying variations to MjModel and MjData.
 
   An instance of this class remembers the original value of each attribute
@@ -108,7 +109,7 @@ class PhysicsVariator:
         optionally takes the original value of an attribute and returns a
         new value.
     """
-    for attribute_name, variation in kwargs.items():
+    for attribute_name, variation in six.iteritems(kwargs):
       if variation is None and attribute_name in self._variations[element]:
         del self._variations[element][attribute_name]
       else:
@@ -116,9 +117,9 @@ class PhysicsVariator:
             _VariationInfo(None, variation))
 
   def apply_variations(self, physics, random_state):
-    for element, variations in self._variations.items():
+    for element, variations in six.iteritems(self._variations):
       binding = physics.bind(element)
-      for attribute_name, variation_info in variations.items():
+      for attribute_name, variation_info in six.iteritems(variations):
         current_value = getattr(binding, attribute_name)
         if variation_info.initial_value is None:
           variation_info.initial_value = copy.copy(current_value)
@@ -131,6 +132,6 @@ class PhysicsVariator:
     self._variations.clear()
 
   def reset_initial_values(self):
-    for variations in self._variations.values():
-      for variation_info in variations.values():
+    for variations in six.itervalues(self._variations):
+      for variation_info in six.itervalues(variations):
         variation_info.initial_value = None

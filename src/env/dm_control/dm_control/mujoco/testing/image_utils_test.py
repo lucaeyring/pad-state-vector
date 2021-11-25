@@ -15,14 +15,20 @@
 
 """Tests for image_utils."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 
+# Internal dependencies.
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control.mujoco.testing import image_utils
 import mock
 import numpy as np
 from PIL import Image
+import six
 
 SEED = 0
 
@@ -30,18 +36,16 @@ SEED = 0
 class ImageUtilsTest(parameterized.TestCase):
 
   @parameterized.parameters(
-      dict(frame_index1=0, frame_index2=0, expected_rms=0.0),
-      dict(frame_index1=0, frame_index2=1, expected_rms=23.241),
-      dict(frame_index1=0, frame_index2=9, expected_rms=55.666))
-  def test_compute_rms(self, frame_index1, frame_index2, expected_rms):
+      (0, 0, 0.0),
+      (0, 2, 23.241),
+      (0, 18, 55.666))
+  def test_compute_rms(self, index1, index2, expected_rms):
     # Force loading of the software rendering reference images regardless of the
     # actual GL backend, since these should match the expected RMS values.
     with mock.patch.object(image_utils, 'BACKEND_STRING', new='software'):
       frames = list(image_utils.humanoid.iter_load())
-    camera_idx = 0
-    num_cameras = image_utils.humanoid.num_cameras
-    image1 = frames[camera_idx + frame_index1 * num_cameras]
-    image2 = frames[camera_idx + frame_index2 * num_cameras]
+    image1 = frames[index1]
+    image2 = frames[index2]
     rms = image_utils.compute_rms(image1, image2)
     self.assertAlmostEqual(rms, expected_rms, places=3)
 
@@ -50,8 +54,8 @@ class ImageUtilsTest(parameterized.TestCase):
     image1 = random_state.randint(0, 255, size=(64, 64, 3), dtype=np.uint8)
     image2 = random_state.randint(0, 255, size=(64, 64, 3), dtype=np.uint8)
     image_utils.assert_images_close(image1, image1, tolerance=0)
-    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
-        image_utils.ImagesNotCloseError, 'RMS error exceeds tolerance'):
+    with six.assertRaisesRegex(self, image_utils.ImagesNotCloseError,
+                               'RMS error exceeds tolerance'):
       image_utils.assert_images_close(image1, image2)
 
   def test_save_images_on_failure(self):
@@ -66,8 +70,8 @@ class ImageUtilsTest(parameterized.TestCase):
     def func():
       raise image_utils.ImagesNotCloseError(message, image1, image2)
 
-    with self.assertRaisesRegex(image_utils.ImagesNotCloseError,
-                                '{}.*'.format(message)):
+    with six.assertRaisesRegex(self, image_utils.ImagesNotCloseError,
+                               '{}.*'.format(message)):
       func()
 
     def validate_saved_file(name, expected_contents):

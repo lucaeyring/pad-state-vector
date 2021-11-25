@@ -15,6 +15,10 @@
 
 """A fake Physics class for unit testing observation framework."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import contextlib
 
 from dm_control.composer.observation import observable
@@ -48,9 +52,6 @@ class FakePhysics(control.Physics):
 
   def sqrt(self):
     return np.sqrt(self._step_counter)
-
-  def sqrt_plus_one(self):
-    return np.sqrt(self._step_counter) + 1
 
   def matrix(self):
     return [[self._step_counter] * 3] * 2

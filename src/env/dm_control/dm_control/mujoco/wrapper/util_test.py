@@ -15,11 +15,17 @@
 
 """Tests for util."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import resource
 
+# Internal dependencies.
 from absl.testing import absltest
 from dm_control.mujoco import wrapper
 from dm_control.mujoco.wrapper import util
+from six.moves import range
 
 _NUM_CALLS = 100000
 _RSS_GROWTH_TOLERANCE = 2000  # Bytes

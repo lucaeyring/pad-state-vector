@@ -15,6 +15,10 @@
 
 """An OpenGL renderer backed by EGL, provided through PyOpenGL."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import atexit
 import ctypes
 import os
@@ -42,18 +46,7 @@ from OpenGL import error
 
 def create_initialized_headless_egl_display():
   """Creates an initialized EGL display directly on a device."""
-  all_devices = EGL.eglQueryDevicesEXT()
-  selected_device = os.environ.get('EGL_DEVICE_ID', None)
-  if selected_device is None:
-    candidates = all_devices
-  else:
-    device_idx = int(selected_device)
-    if not 0 <= device_idx < len(all_devices):
-      raise RuntimeError(
-          f'EGL_DEVICE_ID must be an integer between 0 and '
-          f'{len(all_devices) - 1} (inclusive), got {device_idx}.')
-    candidates = all_devices[device_idx:device_idx + 1]
-  for device in candidates:
+  for device in EGL.eglQueryDevicesEXT():
     display = EGL.eglGetPlatformDisplayEXT(
         EGL.EGL_PLATFORM_DEVICE_EXT, device, None)
     if display != EGL.EGL_NO_DISPLAY and EGL.eglGetError() == EGL.EGL_SUCCESS:
@@ -96,7 +89,8 @@ class EGLContext(base.ContextBase):
   def __init__(self, max_width, max_height):
     # EGLContext currently only works with `PassthroughRenderExecutor`.
     # TODO(b/110927854) Make this work with the offloading executor.
-    super().__init__(max_width, max_height, executor.PassthroughRenderExecutor)
+    super(EGLContext, self).__init__(max_width, max_height,
+                                     executor.PassthroughRenderExecutor)
 
   def _platform_init(self, unused_max_width, unused_max_height):
     """Initialization this EGL context."""

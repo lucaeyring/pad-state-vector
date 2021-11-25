@@ -15,6 +15,9 @@
 
 """Magic constants used within `dm_control.mjcf`."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 PREFIX_SEPARATOR = '/'
 PREFIX_SEPARATOR_ESCAPE = '\\'
@@ -35,7 +38,6 @@ BODY = 'body'
 DEFAULT = 'default'
 MESH = 'mesh'
 SITE = 'site'
-SKIN = 'skin'
 TENDON = 'tendon'
 WORLDBODY = 'worldbody'
 
@@ -68,7 +70,3 @@ MAX_VFS_FILENAME_LENGTH = 98
 # The prefix used in the schema to denote reference_namespace that are defined
 # via another attribute.
 INDIRECT_REFERENCE_NAMESPACE_PREFIX = 'attrib:'
-
-INDIRECT_REFERENCE_ATTRIB = {
-    'xbody': 'body',
-}

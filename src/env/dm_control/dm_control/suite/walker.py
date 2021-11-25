@@ -15,6 +15,10 @@
 
 """Planar Walker Domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -46,9 +50,9 @@ def get_model_and_assets():
 
 
 @SUITE.add('benchmarking')
-def stand(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+def stand(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None, setting_kwargs=None):
   """Returns the Stand task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('walker.xml', setting_kwargs))
   task = PlanarWalker(move_speed=0, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -57,9 +61,9 @@ def stand(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
 
 
 @SUITE.add('benchmarking')
-def walk(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+def walk(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None, setting_kwargs=None):
   """Returns the Walk task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('walker.xml', setting_kwargs))
   task = PlanarWalker(move_speed=_WALK_SPEED, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -68,9 +72,9 @@ def walk(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
 
 
 @SUITE.add('benchmarking')
-def run(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+def run(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None, setting_kwargs=None):
   """Returns the Run task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('walker.xml', setting_kwargs))
   task = PlanarWalker(move_speed=_RUN_SPEED, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -113,7 +117,7 @@ class PlanarWalker(base.Task):
         automatically (default).
     """
     self._move_speed = move_speed
-    super().__init__(random=random)
+    super(PlanarWalker, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     """Sets the state of the environment at the start of each episode.
@@ -126,7 +130,7 @@ class PlanarWalker(base.Task):
 
     """
     randomizers.randomize_limited_and_rotational_joints(physics, self.random)
-    super().initialize_episode(physics)
+    super(PlanarWalker, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns an observation of body orientations, height and velocites."""

@@ -15,42 +15,35 @@
 
 """An object that creates and updates buffers for enabled observables."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
-import functools
 from absl import logging
 
-from dm_control.composer import variation
 from dm_control.composer.observation import obs_buffer
 from dm_env import specs
 import numpy as np
+import six
+from six.moves import range
 
 DEFAULT_BUFFER_SIZE = 1
 DEFAULT_UPDATE_INTERVAL = 1
 DEFAULT_DELAY = 0
 
 
-class _EnabledObservable:
+class _EnabledObservable(object):
   """Encapsulates an enabled observable, its buffer, and its update schedule."""
 
   __slots__ = ('observable', 'observation_callable',
-               'update_interval', 'delay', 'buffer_size',
                'buffer', 'update_schedule')
 
   def __init__(self, observable, physics, random_state,
-               strip_singleton_buffer_dim, pad_with_initial_value):
+               strip_singleton_buffer_dim):
     self.observable = observable
     self.observation_callable = (
         observable.observation_callable(physics, random_state))
-
-    self._bind_attribute_from_observable('update_interval',
-                                         DEFAULT_UPDATE_INTERVAL,
-                                         random_state)
-    self._bind_attribute_from_observable('delay',
-                                         DEFAULT_DELAY,
-                                         random_state)
-    self._bind_attribute_from_observable('buffer_size',
-                                         DEFAULT_BUFFER_SIZE,
-                                         random_state)
 
     obs_spec = self.observable.array_spec
     if obs_spec is None:
@@ -65,22 +58,10 @@ class _EnabledObservable:
       obs_array = np.asarray(obs_array)
       obs_spec = specs.Array(shape=obs_array.shape, dtype=obs_array.dtype)
     self.buffer = obs_buffer.Buffer(
-        buffer_size=self.buffer_size,
+        buffer_size=(observable.buffer_size or DEFAULT_BUFFER_SIZE),
         shape=obs_spec.shape, dtype=obs_spec.dtype,
-        pad_with_initial_value=pad_with_initial_value,
         strip_singleton_buffer_dim=strip_singleton_buffer_dim)
     self.update_schedule = collections.deque()
-
-  def _bind_attribute_from_observable(self, attr, default_value, random_state):
-    obs_attr = getattr(self.observable, attr)
-    if obs_attr:
-      if isinstance(obs_attr, variation.Variation):
-        setattr(self, attr,
-                functools.partial(obs_attr, random_state=random_state))
-      else:
-        setattr(self, attr, obs_attr)
-    else:
-      setattr(self, attr, default_value)
 
 
 def _call_if_callable(arg):
@@ -117,15 +98,13 @@ def _validate_structure(structure):
   return is_nested
 
 
-class Updater:
+class Updater(object):
   """Creates and updates buffers for enabled observables."""
 
   def __init__(self, observables, physics_steps_per_control_step=1,
-               strip_singleton_buffer_dim=False,
-               pad_with_initial_value=False):
+               strip_singleton_buffer_dim=False):
     self._physics_steps_per_control_step = physics_steps_per_control_step
     self._strip_singleton_buffer_dim = strip_singleton_buffer_dim
-    self._pad_with_initial_value = pad_with_initial_value
     self._step_counter = 0
     self._observables = observables
     self._is_nested = _validate_structure(observables)
@@ -140,11 +119,10 @@ class Updater:
       # Use `type(observables)` so that our output structure respects the
       # original dict subclass (e.g. OrderedDict).
       out_dict = type(observables)()
-      for key, value in observables.items():
+      for key, value in six.iteritems(observables):
         if value.enabled:
           out_dict[key] = _EnabledObservable(value, physics, random_state,
-                                             self._strip_singleton_buffer_dim,
-                                             self._pad_with_initial_value)
+                                             self._strip_singleton_buffer_dim)
       return out_dict
 
     if self._is_nested:
@@ -159,7 +137,7 @@ class Updater:
 
     self._step_counter = 0
     for enabled in self._enabled_list:
-      first_delay = _call_if_callable(enabled.delay)
+      first_delay = _call_if_callable(enabled.observable.delay or DEFAULT_DELAY)
       enabled.buffer.insert(
           0, first_delay,
           enabled.observation_callable())
@@ -193,7 +171,7 @@ class Updater:
     def make_observation_spec_dict(enabled_dict):
       """Makes a dict of enabled observation specs from of observables."""
       out_dict = type(enabled_dict)()
-      for name, enabled in enabled_dict.items():
+      for name, enabled in six.iteritems(enabled_dict):
 
         if isinstance(enabled.observable.array_spec, specs.BoundedArray):
           bounds = (enabled.observable.array_spec.minimum,
@@ -247,11 +225,14 @@ class Updater:
     if self._enabled_structure is None:
       raise RuntimeError('`reset` must be called before `before_step`.')
     for enabled in self._enabled_list:
+      update_interval = (
+          enabled.observable.update_interval or DEFAULT_UPDATE_INTERVAL)
+      delay = enabled.observable.delay or DEFAULT_DELAY
+      buffer_size = enabled.observable.buffer_size or DEFAULT_BUFFER_SIZE
 
-      if (enabled.update_interval == DEFAULT_UPDATE_INTERVAL
-          and enabled.delay == DEFAULT_DELAY
-          and enabled.buffer_size < self._physics_steps_per_control_step):
-        for i in reversed(range(enabled.buffer_size)):
+      if (update_interval == DEFAULT_UPDATE_INTERVAL and delay == DEFAULT_DELAY
+          and buffer_size < self._physics_steps_per_control_step):
+        for i in reversed(range(buffer_size)):
           next_step = (
               self._step_counter + self._physics_steps_per_control_step - i)
           next_delay = DEFAULT_DELAY
@@ -263,9 +244,9 @@ class Updater:
           last_scheduled_step = self._step_counter
         max_step = self._step_counter + 2 * self._physics_steps_per_control_step
         while last_scheduled_step < max_step:
-          next_update_interval = _call_if_callable(enabled.update_interval)
+          next_update_interval = _call_if_callable(update_interval)
           next_step = last_scheduled_step + next_update_interval
-          next_delay = _call_if_callable(enabled.delay)
+          next_delay = _call_if_callable(delay)
           enabled.update_schedule.append((next_step, next_delay))
           last_scheduled_step = next_step
         # Optimize the schedule by planning ahead and dropping unseen entries.
@@ -304,7 +285,7 @@ class Updater:
 
     def aggregate_dict(enabled_dict):
       out_dict = type(enabled_dict)()
-      for name, enabled in enabled_dict.items():
+      for name, enabled in six.iteritems(enabled_dict):
         if enabled.observable.aggregator:
           aggregated = enabled.observable.aggregator(
               enabled.buffer.read(self._step_counter))

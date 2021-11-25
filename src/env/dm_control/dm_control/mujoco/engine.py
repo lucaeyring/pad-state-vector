@@ -31,10 +31,13 @@ viewport to an array using the `render` method, and can query for objects
 visible at specific positions using the `select` method. The `Physics` class
 also provides a `render` method that returns a pixel array directly.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import contextlib
 import threading
-from typing import NamedTuple
 
 from absl import logging
 
@@ -42,13 +45,14 @@ from dm_control import _render
 from dm_control.mujoco import index
 from dm_control.mujoco import wrapper
 from dm_control.mujoco.wrapper import util
-from dm_control.mujoco.wrapper.mjbindings import constants
 from dm_control.mujoco.wrapper.mjbindings import enums
 from dm_control.mujoco.wrapper.mjbindings import mjlib
 from dm_control.mujoco.wrapper.mjbindings import types
 from dm_control.rl import control as _control
 from dm_env import specs
+
 import numpy as np
+import six
 
 _FONT_STYLES = {
     'normal': enums.mjtFont.mjFONT_NORMAL,
@@ -76,11 +80,6 @@ _INVALID_PHYSICS_STATE = (
     'Physics state is invalid. Warning(s) raised: {warning_names}')
 _OVERLAYS_NOT_SUPPORTED_FOR_DEPTH_OR_SEGMENTATION = (
     'Overlays are not supported with depth or segmentation rendering.')
-_RENDER_FLAG_OVERRIDES_NOT_SUPPORTED_FOR_DEPTH_OR_SEGMENTATION = (
-    '`render_flag_overrides` are not supported for depth or segmentation '
-    'rendering.')
-_KEYFRAME_ID_OUT_OF_RANGE = (
-    '`keyframe_id` must be between 0 and {max_valid} inclusive, got: {actual}.')
 
 
 class Physics(_control.Physics):
@@ -165,17 +164,8 @@ class Physics(_control.Physics):
 
       mjlib.mj_step1(self.model.ptr, self.data.ptr)
 
-  def render(
-      self,
-      height=240,
-      width=320,
-      camera_id=-1,
-      overlays=(),
-      depth=False,
-      segmentation=False,
-      scene_option=None,
-      render_flag_overrides=None,
-  ):
+  def render(self, height=240, width=320, camera_id=-1, overlays=(),
+             depth=False, segmentation=False, scene_option=None):
     """Returns a camera view as a NumPy array of pixel values.
 
     Args:
@@ -196,12 +186,6 @@ class Physics(_control.Physics):
       scene_option: An optional `wrapper.MjvOption` instance that can be used to
         render the scene with custom visualization options. If None then the
         default options will be used.
-      render_flag_overrides: Optional mapping specifying rendering flags to
-        override. The keys can be either lowercase strings or `mjtRndFlag` enum
-        values, and the values are the overridden flag values, e.g.
-        `{'wireframe': True}` or `{enums.mjtRndFlag.mjRND_WIREFRAME: True}`. See
-        `enums.mjtRndFlag` for the set of valid flags. Must be None if either
-        `depth` or `segmentation` is True.
 
     Returns:
       The rendered RGB, depth or segmentation image.
@@ -210,7 +194,7 @@ class Physics(_control.Physics):
         physics=self, height=height, width=width, camera_id=camera_id)
     image = camera.render(
         overlays=overlays, depth=depth, segmentation=segmentation,
-        scene_option=scene_option, render_flag_overrides=render_flag_overrides)
+        scene_option=scene_option)
     camera._scene.free()  # pylint: disable=protected-access
     return image
 
@@ -262,31 +246,12 @@ class Physics(_control.Physics):
     mjlib.mj_copyData(new_data.ptr, new_data.model.ptr, self.data.ptr)
     cls = self.__class__
     new_obj = cls.__new__(cls)
-    # pylint: disable=protected-access
-    new_obj._warnings_cause_exception = True
-    new_obj._reload_from_data(new_data)
-    # pylint: enable=protected-access
+    new_obj._reload_from_data(new_data)  # pylint: disable=protected-access
     return new_obj
 
-  def reset(self, keyframe_id=None):
-    """Resets internal variables of the simulation, possibly to a keyframe.
-
-    Args:
-      keyframe_id: Optional integer specifying the index of a keyframe defined
-        in the model XML to which the simulation state should be initialized.
-        Must be between 0 and `self.model.nkey - 1` (inclusive).
-
-    Raises:
-      ValueError: If `keyframe_id` is out of range.
-    """
-    if keyframe_id is None:
-      mjlib.mj_resetData(self.model.ptr, self.data.ptr)
-    else:
-      if not 0 <= keyframe_id < self.model.nkey:
-        raise ValueError(_KEYFRAME_ID_OUT_OF_RANGE.format(
-            max_valid=self.model.nkey-1, actual=keyframe_id))
-      mjlib.mj_resetDataKeyframe(self.model.ptr, self.data.ptr, keyframe_id)
-
+  def reset(self):
+    """Resets internal variables of the physics simulation."""
+    mjlib.mj_resetData(self.model.ptr, self.data.ptr)
     # Disable actuation since we don't yet have meaningful control inputs.
     with self.model.disable('actuation'):
       self.forward()
@@ -339,7 +304,6 @@ class Physics(_control.Physics):
     # Note: `_contexts_lock` is normally created in `__new__`, but `__new__` is
     #       not invoked during unpickling.
     self._contexts_lock = threading.Lock()
-    self._warnings_cause_exception = True
     self._reload_from_data(data)
 
   def _reload_from_model(self, model):
@@ -576,24 +540,7 @@ class Physics(_control.Physics):
     return self.data.time
 
 
-class CameraMatrices(NamedTuple):
-  """Component matrices used to construct the camera matrix.
-
-  The matrix product over these components yields the camera matrix.
-
-  Attributes:
-    image: (3, 3) image matrix.
-    focal: (3, 4) focal matrix.
-    rotation: (4, 4) rotation matrix.
-    translation: (4, 4) translation matrix.
-  """
-  image: np.ndarray
-  focal: np.ndarray
-  rotation: np.ndarray
-  translation: np.ndarray
-
-
-class Camera:
+class Camera(object):
   """Mujoco scene camera.
 
   Holds rendering properties such as the width and height of the viewport. The
@@ -607,7 +554,7 @@ class Camera:
                height=240,
                width=320,
                camera_id=-1,
-               max_geom=None):
+               max_geom=1000):
     """Initializes a new `Camera`.
 
     Args:
@@ -618,9 +565,8 @@ class Camera:
         camera, which is always defined. A nonnegative integer or string
         corresponds to a fixed camera, which must be defined in the model XML.
         If `camera_id` is a string then the camera must also be named.
-      max_geom: Optional integer specifying the maximum number of geoms that can
-        be rendered in the same scene. If None this will be chosen automatically
-        based on the estimated maximum number of renderable geoms in the model.
+      max_geom: (optional) An integer specifying the maximum number of geoms
+        that can be represented in the scene.
     Raises:
       ValueError: If `camera_id` is outside the valid range, or if `width` or
         `height` exceed the dimensions of MuJoCo's offscreen framebuffer.
@@ -641,7 +587,7 @@ class Camera:
                        '<visual>\n'
                        '  <global offheight="my_height"/>\n'
                        '</visual>'.format(height, buffer_height))
-    if isinstance(camera_id, str):
+    if isinstance(camera_id, six.string_types):
       camera_id = physics.model.name2id(camera_id, 'camera')
     if camera_id < -1:
       raise ValueError('camera_id cannot be smaller than -1.')
@@ -703,57 +649,6 @@ class Camera:
     """Returns the `mujoco.MjvScene` instance used by the camera."""
     return self._scene
 
-  def matrices(self) -> CameraMatrices:
-    """Computes the component matrices used to compute the camera matrix.
-
-    Returns:
-      An instance of `CameraMatrices` containing the image, focal, rotation, and
-      translation matrices of the camera.
-    """
-    camera_id = self._render_camera.fixedcamid
-    if camera_id == -1:
-      # If the camera is a 'free' camera, we get its position and orientation
-      # from the scene data structure. It is a stereo camera, so we average over
-      # the left and right channels. Note: we call `self.update()` in order to
-      # ensure that the contents of `scene.camera` are correct.
-      self.update()
-      pos = np.mean(self.scene.camera.pos, axis=0)
-      z = -np.mean(self.scene.camera.forward, axis=0)
-      y = np.mean(self.scene.camera.up, axis=0)
-      rot = np.vstack((np.cross(y, z), y, z))
-      fov = self._physics.model.vis.global_.fovy
-    else:
-      pos = self._physics.data.cam_xpos[camera_id]
-      rot = self._physics.data.cam_xmat[camera_id].reshape(3, 3).T
-      fov = self._physics.model.cam_fovy[camera_id]
-
-    # Translation matrix (4x4).
-    translation = np.eye(4)
-    translation[0:3, 3] = -pos
-    # Rotation matrix (4x4).
-    rotation = np.eye(4)
-    rotation[0:3, 0:3] = rot
-    # Focal transformation matrix (3x4).
-    focal_scaling = (1./np.tan(np.deg2rad(fov)/2)) * self.height / 2.0
-    focal = np.diag([-focal_scaling, focal_scaling, 1.0, 0])[0:3, :]
-    # Image matrix (3x3).
-    image = np.eye(3)
-    image[0, 2] = (self.width - 1) / 2.0
-    image[1, 2] = (self.height - 1) / 2.0
-    return CameraMatrices(
-        image=image, focal=focal, rotation=rotation, translation=translation)
-
-  @property
-  def matrix(self):
-    """Returns the 3x4 camera matrix.
-
-    For a description of the camera matrix see, e.g.,
-    https://en.wikipedia.org/wiki/Camera_matrix.
-    For a usage example, see the associated test.
-    """
-    image, focal, rotation, translation = self.matrices()
-    return image @ focal @ rotation @ translation
-
   def update(self, scene_option=None):
     """Updates geometry used for rendering.
 
@@ -786,14 +681,8 @@ class Camera:
         self._rect,
         self._physics.contexts.mujoco.ptr)
 
-  def render(
-      self,
-      overlays=(),
-      depth=False,
-      segmentation=False,
-      scene_option=None,
-      render_flag_overrides=None,
-  ):
+  def render(self, overlays=(), depth=False, segmentation=False,
+             scene_option=None):
     """Renders the camera view as a numpy array of pixel values.
 
     Args:
@@ -806,12 +695,6 @@ class Camera:
         True.
       scene_option: A custom `wrapper.MjvOption` instance to use to render
         the scene instead of the default.  If None, will use the default.
-      render_flag_overrides: Optional mapping containing rendering flags to
-        override. The keys can be either lowercase strings or `mjtRndFlag` enum
-        values, and the values are the overridden flag values, e.g.
-        `{'wireframe': True}` or `{enums.mjtRndFlag.mjRND_WIREFRAME: True}`. See
-        `enums.mjtRndFlag` for the set of valid flags. Must be empty if either
-        `depth` or `segmentation` is True.
 
     Returns:
       The rendered scene.
@@ -826,38 +709,27 @@ class Camera:
           (-1, -1).
 
     Raises:
-      ValueError: If either `overlays` or `render_flag_overrides` is requested
-        when `depth` or `segmentation` rendering is enabled.
+      ValueError: If overlays are requested with depth rendering.
       ValueError: If both depth and segmentation flags are set together.
     """
 
     if overlays and (depth or segmentation):
       raise ValueError(_OVERLAYS_NOT_SUPPORTED_FOR_DEPTH_OR_SEGMENTATION)
 
-    if render_flag_overrides and (depth or segmentation):
-      raise ValueError(
-          _RENDER_FLAG_OVERRIDES_NOT_SUPPORTED_FOR_DEPTH_OR_SEGMENTATION)
-
     if depth and segmentation:
       raise ValueError(_BOTH_SEGMENTATION_AND_DEPTH_ENABLED)
 
-    if render_flag_overrides is None:
-      render_flag_overrides = {}
+    # Enable flags to compute segmentation labels
+    if segmentation:
+      self._scene.flags[enums.mjtRndFlag.mjRND_SEGMENT] = True
+      self._scene.flags[enums.mjtRndFlag.mjRND_IDCOLOR] = True
 
     # Update scene geometry.
     self.update(scene_option=scene_option)
 
-    # Enable flags to compute segmentation labels
-    if segmentation:
-      render_flag_overrides.update({
-          enums.mjtRndFlag.mjRND_SEGMENT: True,
-          enums.mjtRndFlag.mjRND_IDCOLOR: True,
-      })
-
     # Render scene and text overlays, read contents of RGB or depth buffer.
-    with self.scene.override_flags(render_flag_overrides):
-      with self._physics.contexts.gl.make_current() as ctx:
-        ctx.call(self._render_on_gl_thread, depth=depth, overlays=overlays)
+    with self._physics.contexts.gl.make_current() as ctx:
+      ctx.call(self._render_on_gl_thread, depth=depth, overlays=overlays)
 
     if depth:
       # Get the distances to the near and far clipping planes.
@@ -953,7 +825,8 @@ class MovableCamera(Camera):
       height: Optional image height. Defaults to 240.
       width: Optional image width. Defaults to 320.
     """
-    super().__init__(physics=physics, height=height, width=width, camera_id=-1)
+    super(MovableCamera, self).__init__(
+        physics=physics, height=height, width=width, camera_id=-1)
 
   def get_pose(self):
     """Returns the pose of the camera.
@@ -983,7 +856,7 @@ class MovableCamera(Camera):
     self._render_camera.elevation = elevation
 
 
-class TextOverlay:
+class TextOverlay(object):
   """A text overlay that can be drawn on top of a camera view."""
 
   __slots__ = ('title', 'body', 'style', 'position')
@@ -1023,8 +896,8 @@ def action_spec(physics):
   num_actions = physics.model.nu
   is_limited = physics.model.actuator_ctrllimited.ravel().astype(np.bool)
   control_range = physics.model.actuator_ctrlrange
-  minima = np.full(num_actions, fill_value=-constants.mjMAXVAL, dtype=np.float)
-  maxima = np.full(num_actions, fill_value=constants.mjMAXVAL, dtype=np.float)
+  minima = np.full(num_actions, fill_value=-np.inf, dtype=np.float)
+  maxima = np.full(num_actions, fill_value=np.inf, dtype=np.float)
   minima[is_limited], maxima[is_limited] = control_range[is_limited].T
 
   return specs.BoundedArray(

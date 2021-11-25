@@ -15,12 +15,16 @@
 
 """Tests for dm_control.locomotion.soccer.load."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from absl import logging
 from absl.testing import absltest
 from absl.testing import parameterized
 from dm_control.locomotion import soccer
 import numpy as np
+from six.moves import range
 
 
 class LoadTest(parameterized.TestCase):

@@ -15,9 +15,17 @@
 
 """Tests for dm_control.utils.rewards."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
+
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from dm_control.utils import rewards
+
 import numpy as np
 
 
@@ -37,7 +45,7 @@ class ToleranceTest(parameterized.TestCase):
 
   @parameterized.parameters(("gaussian",), ("hyperbolic",), ("long_tail",),
                             ("cosine",), ("tanh_squared",), ("linear",),
-                            ("quadratic",), ("reciprocal",))
+                            ("quadratic"))
   def test_tolerance_sigmoids(self, sigmoid):
     margins = [0.01, 1.0, 100, 10000]
     values_at_margin = [0.1, 0.5, 0.9]

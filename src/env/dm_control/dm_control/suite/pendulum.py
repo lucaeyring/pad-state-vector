@@ -15,6 +15,10 @@
 
 """Pendulum domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -75,7 +79,7 @@ class SwingUp(base.Task):
         integer seed for creating a new `RandomState`, or None to select a seed
         automatically (default).
     """
-    super().__init__(random=random)
+    super(SwingUp, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     """Sets the state of the environment at the start of each episode.
@@ -87,7 +91,7 @@ class SwingUp(base.Task):
 
     """
     physics.named.data.qpos['hinge'] = self.random.uniform(-np.pi, np.pi)
-    super().initialize_episode(physics)
+    super(SwingUp, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns an observation.

@@ -15,6 +15,10 @@
 
 """Module defining the abstract entity class."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import collections
 import os
@@ -25,6 +29,7 @@ from dm_control import mjcf
 from dm_control.composer import define
 from dm_control.mujoco.wrapper import mjbindings
 import numpy as np
+import six
 
 _OPTION_KEYS = set(['update_interval', 'buffer_size', 'delay', 'aggregator',
                     'corruptor', 'enabled'])
@@ -46,7 +51,7 @@ def _rotate_vector(vec, quat):
   return result
 
 
-class _ObservableKeys:
+class _ObservableKeys(object):
   """Helper object that implements the `observables.dict_keys` functionality."""
 
   def __init__(self, entity, observables):
@@ -62,11 +67,11 @@ class _ObservableKeys:
 
   def __dir__(self):
     out = set(self._observables.keys())
-    out.update(dir(super()))
+    out.update(dir(super(_ObservableKeys, self)))
     return list(out)
 
 
-class Observables:
+class Observables(object):
   """Base-class for Entity observables.
 
   Subclasses should declare getter methods annotated with @define.observable
@@ -111,7 +116,7 @@ class Observables:
 
       return collections.OrderedDict(
           [(os.path.join(model_identifier, name), observable)
-           for name, observable in self._observables.items()])
+           for name, observable in six.iteritems(self._observables)])
     else:
       # Return a copy to prevent dict being edited.
       return self._observables.copy()
@@ -147,7 +152,7 @@ class Observables:
     elif options.keys() and set(options.keys()).issubset(_OPTION_KEYS):
       options = dict([(key, options) for key in self._observables.keys()])
 
-    for obs_key, obs_options in options.items():
+    for obs_key, obs_options in six.iteritems(options):
       try:
         obs = self._observables[obs_key]
       except KeyError:
@@ -169,7 +174,8 @@ class Observables:
     self._observables[name].enabled = enabled
 
 
-class FreePropObservableMixin(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class FreePropObservableMixin(object):
   """Enforce observables of a free-moving object."""
 
   @abc.abstractproperty
@@ -189,7 +195,8 @@ class FreePropObservableMixin(metaclass=abc.ABCMeta):
     pass
 
 
-class Entity(metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Entity(object):
   """The abstract base class for an entity in a Composer environment."""
 
   def __init__(self, *args, **kwargs):
@@ -311,7 +318,7 @@ class Entity(metaclass=abc.ABCMeta):
   def detach(self):
     """Detaches this entity if it has previously been attached."""
     if self._parent is not None:
-      parent = self._parent()  # pylint: disable=not-callable
+      parent = self._parent()
       if parent:  # Weakref might dereference to None during garbage collection.
         self.mjcf_model.detach()
         parent._attached.remove(self)  # pylint: disable=protected-access
@@ -322,7 +329,7 @@ class Entity(metaclass=abc.ABCMeta):
   @property
   def parent(self):
     """Returns the `Entity` to which this entity is attached, or `None`."""
-    return self._parent() if self._parent else None  # pylint: disable=not-callable
+    return self._parent() if self._parent else None
 
   @property
   def attachment_site(self):
@@ -525,26 +532,6 @@ class Entity(metaclass=abc.ABCMeta):
         rotated_velocity = _rotate_vector(velocity, quaternion)
         self.set_velocity(physics, rotated_velocity)
     self.set_pose(physics, new_position, new_quaternion)
-
-  def get_velocity(self, physics):
-    """Gets the linear and angular velocity of this free entity.
-
-    Args:
-      physics: An instance of `mjcf.Physics`.
-
-    Returns:
-      A 2-tuple where the first entry is a (3,) numpy array representing the
-      linear velocity and the second is a (3,) numpy array representing the
-      angular velocity.
-
-    """
-    root_joint = mjcf.get_frame_freejoint(self.mjcf_model)
-    if root_joint:
-      velocity = physics.bind(root_joint).qvel[:3]
-      angular_velocity = physics.bind(root_joint).qvel[3:]
-      return velocity, angular_velocity
-    else:
-      raise ValueError('get_velocity cannot be used on a non-free entity')
 
   def set_velocity(self, physics, velocity=None, angular_velocity=None):
     """Sets the linear velocity and/or angular velocity of this free entity.

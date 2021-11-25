@@ -15,10 +15,18 @@
 
 """Control Environment tests."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
+
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from dm_control.rl import control
 from dm_env import specs
+
 import mock
 import numpy as np
 
@@ -33,7 +41,7 @@ _OBSERVATION_SPEC = {'observations': specs.Array(shape=(), dtype=np.float)}
 class EnvironmentTest(parameterized.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(EnvironmentTest, self).setUp()
     self._task = mock.Mock(spec=control.Task)
     self._task.initialize_episode = mock.Mock()
     self._task.get_observation = mock.Mock(return_value=_CONSTANT_OBSERVATION)

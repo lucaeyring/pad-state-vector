@@ -15,6 +15,9 @@
 
 """Position & velocity actuators whose controls are scaled to a given range."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 _DISALLOWED_KWARGS = frozenset(
     ['biastype', 'gainprm', 'biasprm', 'ctrllimited',

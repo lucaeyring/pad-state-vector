@@ -15,13 +15,19 @@
 
 """Script for generating pre-rendered frames used in integration tests."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
 from absl import app
 from dm_control.mujoco.testing import image_utils
+import six
 
 
 def main(argv):
   del argv  # Unused.
-  for sequence in image_utils.SEQUENCES.values():
+  for sequence in six.itervalues(image_utils.SEQUENCES):
     sequence.save()
 
 if __name__ == '__main__':

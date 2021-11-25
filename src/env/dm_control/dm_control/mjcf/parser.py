@@ -15,6 +15,10 @@
 
 """Functions for parsing XML into an MJCF object model."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 import sys
 
@@ -22,6 +26,7 @@ from dm_control.mjcf import constants
 from dm_control.mjcf import debugging
 from dm_control.mjcf import element
 from lxml import etree
+import six
 from dm_control.utils import io as resources
 
 
@@ -127,13 +132,13 @@ def _parse(xml_root, escape_separators=False,
     An `mjcf.RootElement`.
 
   Raises:
-    ValueError: If `xml_root`'s tag is not 'mujoco.*'.
+    ValueError: If `xml_root`'s tag is not 'mujoco'.
   """
 
   assets = assets or {}
 
-  if not xml_root.tag.startswith('mujoco'):
-    raise ValueError('Root element of the XML should be <mujoco.*>: got <{}>'
+  if xml_root.tag != 'mujoco':
+    raise ValueError('Root element of the XML should be <mujoco>: got <{}>'
                      .format(xml_root.tag))
 
   with debugging.freeze_current_stack_trace():
@@ -197,7 +202,7 @@ def _parse_children(xml_element, mjcf_element, escape_separators=False):
       child_spec = mjcf_element.spec.children[xml_child.tag]
       if escape_separators:
         attributes = {}
-        for name, value in xml_child.attrib.items():
+        for name, value in six.iteritems(xml_child.attrib):
           new_value = value.replace(
               constants.PREFIX_SEPARATOR_ESCAPE,
               constants.PREFIX_SEPARATOR_ESCAPE * 2)
@@ -213,7 +218,7 @@ def _parse_children(xml_element, mjcf_element, escape_separators=False):
         mjcf_child.set_attributes(**attributes)
     except:  # pylint: disable=bare-except
       err_type, err, traceback = sys.exc_info()
-      raise err_type(
-          f'Line {xml_child.sourceline}: error while parsing element '
-          f'<{xml_child.tag}>: {err}').with_traceback(traceback)
+      message = ('Line {}: error while parsing element <{}>: {}'
+                 .format(xml_child.sourceline, xml_child.tag, err))
+      six.reraise(err_type, err_type(message), traceback)
     _parse_children(xml_child, mjcf_child, escape_separators)

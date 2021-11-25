@@ -14,14 +14,22 @@
 # ============================================================================
 
 """Tests for index."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+# Internal dependencies.
 
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from dm_control.mujoco import index
 from dm_control.mujoco import wrapper
 from dm_control.mujoco.testing import assets
 from dm_control.mujoco.wrapper.mjbindings import sizes
+
 import numpy as np
+import six
 
 MODEL = assets.get_contents('cartpole.xml')
 MODEL_NO_NAMES = assets.get_contents('cartpole_no_names.xml')
@@ -55,7 +63,7 @@ FIELD_REPR = {
 class MujocoIndexTest(parameterized.TestCase):
 
   def setUp(self):
-    super().setUp()
+    super(MujocoIndexTest, self).setUp()
     self._model = wrapper.MjModel.from_xml_string(MODEL)
     self._data = wrapper.MjData(self._model)
 
@@ -174,8 +182,8 @@ class MujocoIndexTest(parameterized.TestCase):
     # requirement of MuJoCo's compiler that all third-order actuators come after
     # all second-order actuators. This test ensures that the rule still holds
     # (e.g. in future versions of MuJoCo).
-    with self.assertRaisesRegex(
-        wrapper.Error, '2nd-order actuators must come before 3rd-order'):
+    with six.assertRaisesRegex(
+        self, wrapper.Error, '2nd-order actuators must come before 3rd-order'):
       wrapper.MjModel.from_xml_string(MODEL_INCORRECT_ACTUATOR_ORDER)
 
   @parameterized.parameters(
@@ -230,11 +238,11 @@ class MujocoIndexTest(parameterized.TestCase):
   def testNamedColumnFieldNames(self):
 
     all_fields = set()
-    for struct in sizes.array_sizes.values():
+    for struct in six.itervalues(sizes.array_sizes):
       all_fields.update(struct.keys())
 
     named_col_fields = set()
-    for field_set in index._COLUMN_ID_TO_FIELDS.values():
+    for field_set in six.itervalues(index._COLUMN_ID_TO_FIELDS):
       named_col_fields.update(field_set)
 
     # Check that all of the "named column" fields specified in index are
@@ -244,7 +252,7 @@ class MujocoIndexTest(parameterized.TestCase):
   @parameterized.parameters('xpos', 'xmat')  # field name
   def testTooManyIndices(self, field_name):
     indexer = getattr(self._data_indexers, field_name)
-    with self.assertRaisesRegex(IndexError, 'Index tuple'):
+    with six.assertRaisesRegex(self, IndexError, 'Index tuple'):
       _ = indexer[:, :, :, 'too', 'many', 'elements']
 
   @parameterized.parameters(
@@ -268,7 +276,7 @@ class MujocoIndexTest(parameterized.TestCase):
         (0, np.array([[bad_index_item]]))
     ]
     for expression in expressions:
-      with self.assertRaisesRegex(IndexError, exception_regexp):
+      with six.assertRaisesRegex(self, IndexError, exception_regexp):
         _ = indexer[expression]
 
   @parameterized.parameters('act', 'qM', 'sensordata', 'xpos')  # field name
@@ -309,7 +317,7 @@ class MujocoIndexTest(parameterized.TestCase):
       self.assertEqual(actual, expected)
 
     # FieldIndexer attributes should be read-only
-    with self.assertRaisesRegex(AttributeError, name):
+    with six.assertRaisesRegex(self, AttributeError, name):
       setattr(field_indexer, name, expected)
 
   def testFieldIndexerDir(self):
@@ -322,7 +330,7 @@ def _iter_indexers(model, data):
   size_to_axis_indexer = index.make_axis_indexers(model)
   for struct, struct_name in ((model, 'mjmodel'), (data, 'mjdata')):
     indexer = index.struct_indexer(struct, struct_name, size_to_axis_indexer)
-    for field_name, field_indexer in indexer._asdict().items():
+    for field_name, field_indexer in six.iteritems(indexer._asdict()):
       yield field_name, field_indexer
 
 

@@ -15,11 +15,16 @@
 
 """Functions for computing inverse kinematics on MuJoCo models."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from absl import logging
 from dm_control.mujoco.wrapper import mjbindings
 import numpy as np
+from six.moves import range
 
 mjlib = mjbindings.mjlib
 
@@ -56,7 +61,7 @@ def qpos_from_site_pose(physics,
       the site, or None if the position should be unconstrained (default).
       One or both of `target_pos` or `target_quat` must be specified.
     target_quat: A (4,) numpy array specifying the desired orientation of the
-      site as a quaternion, or None if the orientation should be unconstrained
+      site as a quarternion, or None if the orientation should be unconstrained
       (default). One or both of `target_pos` or `target_quat` must be specified.
     joint_names: (optional) A list, tuple or numpy array specifying the names of
       one or more joints that can be manipulated in order to achieve the target

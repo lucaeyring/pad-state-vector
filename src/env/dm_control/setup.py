@@ -15,24 +15,20 @@
 
 """Install script for setuptools."""
 
-from distutils import cmd
-from distutils import log
 import fnmatch
 import os
 import subprocess
 import sys
 
+from distutils import cmd
+from distutils import log
 from setuptools import find_packages
 from setuptools import setup
 from setuptools.command import install
 from setuptools.command import test
 
-PLATFORM_SUFFIXES = {
-    'Linux': 'linux',
-    'Windows': 'win64',
-    'Darwin': 'macos',
-}
-DEFAULT_HEADERS_DIR = '~/.mujoco/mujoco210/include'
+
+DEFAULT_HEADERS_DIR = '~/mujoco210/include'
 
 # Relative paths to the binding generator script and the output directory.
 AUTOWRAP_PATH = 'dm_control/autowrap/autowrap.py'
@@ -151,71 +147,54 @@ class TestCommand(test.test):
     test.test.run(self)
 
 
-def find_data_files(package_dir, patterns, excludes=()):
+def find_data_files(package_dir, patterns):
   """Recursively finds files whose names match the given shell patterns."""
   paths = set()
-
-  def is_excluded(s):
-    for exclude in excludes:
-      if fnmatch.fnmatch(s, exclude):
-        return True
-    return False
-
   for directory, _, filenames in os.walk(package_dir):
-    if is_excluded(directory):
-      continue
     for pattern in patterns:
       for filename in fnmatch.filter(filenames, pattern):
         # NB: paths must be relative to the package directory.
         relative_dirpath = os.path.relpath(directory, package_dir)
-        full_path = os.path.join(relative_dirpath, filename)
-        if not is_excluded(full_path):
-          paths.add(full_path)
+        paths.add(os.path.join(relative_dirpath, filename))
   return list(paths)
 
 setup(
     name='dm_control',
-    version='0.0.408319720',
+    version='0.0.301472480',
     description='Continuous control environments and MuJoCo Python bindings.',
     author='DeepMind',
     license='Apache License, Version 2.0',
     keywords='machine learning control physics MuJoCo AI',
-    python_requires='>=3.7, <3.10',
     install_requires=[
         'absl-py>=0.7.0',
+        'enum34; python_version < "3.4"',
         'dm-env',
         'dm-tree != 0.1.2',
         'future',
+        'futures; python_version == "2.7"',
         'glfw',
-        'h5py',
-        'labmaze',
         'lxml',
-        'numpy >= 1.9.0',
-        'protobuf >= 3.15.6',
+        'numpy',
         'pyopengl >= 3.1.4',
-        'pyparsing < 3.0.0',
-        'requests',
-        'setuptools!=50.0.0',  # https://github.com/pypa/setuptools/issues/2350
+        'pyparsing',
+        'setuptools',
         'scipy',
-        'tqdm',
+        'six',
     ],
+    extras_require={
+        'locomotion_mazes': ['labmaze'],
+    },
     tests_require=[
         'mock',
         'nose',
-        'pillow>=7.1.0',  # https://github.com/advisories/GHSA-8843-m7mw-mxqm
+        'pillow',
     ],
     test_suite='nose.collector',
     packages=find_packages(),
     package_data={
-        'dm_control':
-            find_data_files(
-                package_dir='dm_control',
-                patterns=['*.amc', '*.msh', '*.png', '*.skn', '*.stl', '*.xml',
-                          '*.textproto', '*.h5'],
-                excludes=[
-                    '*/dog_assets/extras/*',
-                    '*/kinova/meshes/*',  # Exclude non-decimated meshes.
-                ]),
+        'dm_control': find_data_files(package_dir='dm_control',
+                                      patterns=['*.amc', '*.msh', '*.png',
+                                                '*.skn', '*.stl', '*.xml']),
     },
     cmdclass={
         'build_mjbindings': BuildMJBindingsCommand,

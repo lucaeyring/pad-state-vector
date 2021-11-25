@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+
 """Standard statistical distributions that conform to the Variation API."""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import abc
 import functools
@@ -20,9 +25,11 @@ import functools
 from dm_control.composer import variation
 from dm_control.composer.variation import base
 import numpy as np
+import six
 
 
-class Distribution(base.Variation, metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Distribution(base.Variation):
   """Base Distribution class for sampling a parametrized distribution.
 
   Subclasses need to implement `_callable`, which needs to return a callable
@@ -42,30 +49,19 @@ class Distribution(base.Variation, metaclass=abc.ABCMeta):
 
   def __call__(self, initial_value=None, current_value=None, random_state=None):
     local_random_state = random_state or np.random
-    size = (
-        None if self._single_sample or initial_value is None  # pylint: disable=g-long-ternary
-        else np.shape(initial_value))
-    local_args = variation.evaluate(
-        self._args,
-        initial_value=initial_value,
-        current_value=current_value,
-        random_state=random_state)
-    local_kwargs = variation.evaluate(
-        self._kwargs,
-        initial_value=initial_value,
-        current_value=current_value,
-        random_state=random_state)
-    return self._callable(local_random_state)(
-        *local_args, size=size, **local_kwargs)
-
-  def __getattr__(self, name):
-    if name.startswith('__'):
-      raise AttributeError  # Stops infinite recursion during deepcopy.
-    elif name in self._kwargs:
-      return self._kwargs[name]
-    else:
-      raise AttributeError('{!r} object has no attribute {!r}'.format(
-          type(self).__name__, name))
+    size = (None if self._single_sample or initial_value is None  # pylint: disable=g-long-ternary
+            else np.shape(initial_value))
+    local_args = variation.evaluate(self._args,
+                                    initial_value=initial_value,
+                                    current_value=current_value,
+                                    random_state=random_state)
+    local_kwargs = variation.evaluate(self._kwargs,
+                                      initial_value=initial_value,
+                                      current_value=current_value,
+                                      random_state=random_state)
+    return self._callable(local_random_state)(*local_args,
+                                              size=size,
+                                              **local_kwargs)
 
   @abc.abstractmethod
   def _callable(self, random_state):
@@ -76,7 +72,8 @@ class Uniform(Distribution):
   __slots__ = ()
 
   def __init__(self, low=0.0, high=1.0, single_sample=False):
-    super().__init__(low=low, high=high, single_sample=single_sample)
+    super(Uniform, self).__init__(low=low, high=high,
+                                  single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.uniform
@@ -86,7 +83,8 @@ class UniformInteger(Distribution):
   __slots__ = ()
 
   def __init__(self, low, high=None, single_sample=False):
-    super().__init__(low, high=high, single_sample=single_sample)
+    super(UniformInteger, self).__init__(low, high=high,
+                                         single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.randint
@@ -96,24 +94,19 @@ class UniformChoice(Distribution):
   __slots__ = ()
 
   def __init__(self, choices, single_sample=False):
-    super().__init__(choices, single_sample=single_sample)
+    super(UniformChoice, self).__init__(choices, single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.choice
 
 
 class UniformPointOnSphere(base.Variation):
-  """Samples a point on the unit sphere, i.e. a 3D vector with norm 1."""
   __slots__ = ()
 
-  def __init__(self, single_sample=False):
-    self._single_sample = single_sample
-
-  def __call__(self, initial_value=None, current_value=None, random_state=None):
+  def __call__(self, initial_value=None,
+               current_value=None, random_state=None):
     random_state = random_state or np.random
-    size = (
-        3 if self._single_sample or initial_value is None  # pylint: disable=g-long-ternary
-        else np.append(np.shape(initial_value), 3))
+    size = 3 if initial_value is None else np.append(np.shape(initial_value), 3)
     axis = random_state.normal(size=size)
     axis /= np.linalg.norm(axis, axis=-1, keepdims=True)
     return axis
@@ -123,7 +116,8 @@ class Normal(Distribution):
   __slots__ = ()
 
   def __init__(self, loc=0.0, scale=1.0, single_sample=False):
-    super().__init__(loc=loc, scale=scale, single_sample=single_sample)
+    super(Normal, self).__init__(loc=loc, scale=scale,
+                                 single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.normal
@@ -133,7 +127,8 @@ class LogNormal(Distribution):
   __slots__ = ()
 
   def __init__(self, mean=0.0, sigma=1.0, single_sample=False):
-    super().__init__(mean=mean, sigma=sigma, single_sample=single_sample)
+    super(LogNormal, self).__init__(mean=mean, sigma=sigma,
+                                    single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.lognormal
@@ -143,7 +138,7 @@ class Exponential(Distribution):
   __slots__ = ()
 
   def __init__(self, scale=1.0, single_sample=False):
-    super().__init__(scale=scale, single_sample=single_sample)
+    super(Exponential, self).__init__(scale=scale, single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.exponential
@@ -153,7 +148,7 @@ class Poisson(Distribution):
   __slots__ = ()
 
   def __init__(self, lam=1.0, single_sample=False):
-    super().__init__(lam=lam, single_sample=single_sample)
+    super(Poisson, self).__init__(lam=lam, single_sample=single_sample)
 
   def _callable(self, random_state):
     return random_state.poisson
@@ -163,7 +158,7 @@ class Bernoulli(Distribution):
   __slots__ = ()
 
   def __init__(self, prob=0.5, single_sample=False):
-    super().__init__(prob, single_sample=single_sample)
+    super(Bernoulli, self).__init__(prob, single_sample=single_sample)
 
   def _callable(self, random_state):
     return functools.partial(random_state.binomial, 1)
@@ -192,8 +187,9 @@ class BiasedRandomWalk(base.Variation):
     Args:
       stdev: Float. Standard deviation of the output sequence.
       timescale: Integer. Number of timesteps characteristic of the random walk.
-        After `timescale` steps the correlation is reduced by exp(-1). Larger or
-        equal to 0, where a value of 0 is an uncorrelated normal distribution.
+        After `timescale` steps the correlation is reduced by exp(-1). Larger
+        or equal to 0, where a value of 0 is an uncorrelated normal
+        distribution.
 
     Raises:
       ValueError: if either `stdev` or `timescale` is negative.
@@ -211,7 +207,6 @@ class BiasedRandomWalk(base.Variation):
 
   def __call__(self, initial_value=None, current_value=None, random_state=None):
     random_state = random_state or np.random
-    self._value = (
-        self._retain * self._value +
-        random_state.normal(loc=0.0, scale=self._scale))
+    self._value = (self._retain * self._value +
+                   random_state.normal(loc=0.0, scale=self._scale))
     return self._value

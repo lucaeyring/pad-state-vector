@@ -15,6 +15,10 @@
 
 """Cartpole domain."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 
 from dm_control import mujoco
@@ -25,6 +29,7 @@ from dm_control.utils import containers
 from dm_control.utils import rewards
 from lxml import etree
 import numpy as np
+from six.moves import range
 
 
 _DEFAULT_TIME_LIMIT = 10
@@ -38,9 +43,9 @@ def get_model_and_assets(num_poles=1):
 
 @SUITE.add('benchmarking')
 def balance(time_limit=_DEFAULT_TIME_LIMIT, random=None,
-            environment_kwargs=None):
+            environment_kwargs=None, setting_kwargs=None):
   """Returns the Cartpole Balance task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('cartpole.xml', setting_kwargs))
   task = Balance(swing_up=False, sparse=False, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -49,9 +54,9 @@ def balance(time_limit=_DEFAULT_TIME_LIMIT, random=None,
 
 @SUITE.add('benchmarking')
 def balance_sparse(time_limit=_DEFAULT_TIME_LIMIT, random=None,
-                   environment_kwargs=None):
+                   environment_kwargs=None, setting_kwargs=None):
   """Returns the sparse reward variant of the Cartpole Balance task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('cartpole.xml', setting_kwargs))
   task = Balance(swing_up=False, sparse=True, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -60,9 +65,9 @@ def balance_sparse(time_limit=_DEFAULT_TIME_LIMIT, random=None,
 
 @SUITE.add('benchmarking')
 def swingup(time_limit=_DEFAULT_TIME_LIMIT, random=None,
-            environment_kwargs=None):
+            environment_kwargs=None, setting_kwargs=None):
   """Returns the Cartpole Swing-Up task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('cartpole.xml', setting_kwargs))
   task = Balance(swing_up=True, sparse=False, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -71,9 +76,9 @@ def swingup(time_limit=_DEFAULT_TIME_LIMIT, random=None,
 
 @SUITE.add('benchmarking')
 def swingup_sparse(time_limit=_DEFAULT_TIME_LIMIT, random=None,
-                   environment_kwargs=None):
-  """Returns the sparse reward variant of the Cartpole Swing-Up task."""
-  physics = Physics.from_xml_string(*get_model_and_assets())
+                   environment_kwargs=None, setting_kwargs=None):
+  """Returns the sparse reward variant of teh Cartpole Swing-Up task."""
+  physics = Physics.from_xml_string(*common.settings.get_model_and_assets_from_setting_kwargs('cartpole.xml', setting_kwargs))
   task = Balance(swing_up=True, sparse=True, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(
@@ -172,7 +177,7 @@ class Balance(base.Task):
     """
     self._sparse = sparse
     self._swing_up = swing_up
-    super().__init__(random=random)
+    super(Balance, self).__init__(random=random)
 
   def initialize_episode(self, physics):
     """Sets the state of the environment at the start of each episode.
@@ -192,7 +197,7 @@ class Balance(base.Task):
       physics.named.data.qpos['slider'] = self.random.uniform(-.1, .1)
       physics.named.data.qpos[1:] = self.random.uniform(-.034, .034, nv - 1)
     physics.named.data.qvel[:] = 0.01 * self.random.randn(physics.model.nv)
-    super().initialize_episode(physics)
+    super(Balance, self).initialize_episode(physics)
 
   def get_observation(self, physics):
     """Returns an observation of the (bounded) physics state."""

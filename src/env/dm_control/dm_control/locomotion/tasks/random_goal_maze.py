@@ -14,6 +14,10 @@
 # ============================================================================
 """A task consisting of finding goals/targets in a random maze."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
 import itertools
 
@@ -23,6 +27,8 @@ from dm_control.composer.observation import observable as observable_lib
 from dm_control.locomotion.props import target_sphere
 from dm_control.mujoco.wrapper import mjbindings
 import numpy as np
+from six.moves import range
+from six.moves import zip
 
 _NUM_RAYS = 10
 
@@ -160,8 +166,6 @@ class NullGoalMaze(composer.Task):
     if self._randomize_spawn_position:
       self._spawn_position = self._maze_arena.spawn_positions[
           random_state.randint(0, len(self._maze_arena.spawn_positions))]
-    else:
-      self._spawn_position = self._maze_arena.spawn_positions[0]
 
     if self._randomize_spawn_rotation:
       # Move walker up out of the way before raycasting.
@@ -200,7 +204,7 @@ class NullGoalMaze(composer.Task):
         rotate_velocity=True)
 
   def initialize_episode(self, physics, random_state):
-    super().initialize_episode(physics, random_state)
+    super(NullGoalMaze, self).initialize_episode(physics, random_state)
     self._respawn(physics, random_state)
     self._discount = 1.0
 
@@ -250,7 +254,7 @@ class RepeatSingleGoalMaze(NullGoalMaze):
   def __init__(self,
                walker,
                maze_arena,
-               target=None,
+               target=target_sphere.TargetSphere(),
                target_reward_scale=1.0,
                randomize_spawn_position=True,
                randomize_spawn_rotation=True,
@@ -261,9 +265,8 @@ class RepeatSingleGoalMaze(NullGoalMaze):
                max_repeats=0,
                enable_global_task_observables=False,
                physics_timestep=DEFAULT_PHYSICS_TIMESTEP,
-               control_timestep=DEFAULT_CONTROL_TIMESTEP,
-               regenerate_maze_on_repeat=False):
-    super().__init__(
+               control_timestep=DEFAULT_CONTROL_TIMESTEP):
+    super(RepeatSingleGoalMaze, self).__init__(
         walker=walker,
         maze_arena=maze_arena,
         randomize_spawn_position=randomize_spawn_position,
@@ -275,15 +278,12 @@ class RepeatSingleGoalMaze(NullGoalMaze):
         enable_global_task_observables=enable_global_task_observables,
         physics_timestep=physics_timestep,
         control_timestep=control_timestep)
-    if target is None:
-      target = target_sphere.TargetSphere()
     self._target = target
     self._rewarded_this_step = False
     self._maze_arena.attach(target)
     self._target_reward_scale = target_reward_scale
     self._max_repeats = max_repeats
     self._targets_obtained = 0
-    self._regenerate_maze_on_repeat = regenerate_maze_on_repeat
 
     if enable_global_task_observables:
       xpos_origin_callable = lambda phys: phys.bind(walker.root_body).xpos
@@ -297,33 +297,30 @@ class RepeatSingleGoalMaze(NullGoalMaze):
           origin_callable=xpos_origin_callable)
 
   def initialize_episode_mjcf(self, random_state):
-    super().initialize_episode_mjcf(random_state)
+    super(RepeatSingleGoalMaze, self).initialize_episode_mjcf(random_state)
     self._target_position = self._maze_arena.target_positions[
         random_state.randint(0, len(self._maze_arena.target_positions))]
     mjcf.get_attachment_frame(
         self._target.mjcf_model).pos = self._target_position
 
   def initialize_episode(self, physics, random_state):
-    super().initialize_episode(physics, random_state)
+    super(RepeatSingleGoalMaze, self).initialize_episode(physics, random_state)
     self._rewarded_this_step = False
     self._targets_obtained = 0
 
   def after_step(self, physics, random_state):
-    super().after_step(physics, random_state)
+    super(RepeatSingleGoalMaze, self).after_step(physics, random_state)
     if self._target.activated:
       self._rewarded_this_step = True
       self._targets_obtained += 1
       if self._targets_obtained <= self._max_repeats:
-        if self._regenerate_maze_on_repeat:
-          self.initialize_episode_mjcf(random_state)
-          self._target.set_pose(physics, self._target_position)
         self._respawn(physics, random_state)
         self._target.reset(physics)
     else:
       self._rewarded_this_step = False
 
   def should_terminate_episode(self, physics):
-    if super().should_terminate_episode(physics):
+    if super(RepeatSingleGoalMaze, self).should_terminate_episode(physics):
       return True
     if self._targets_obtained > self._max_repeats:
       return True
@@ -355,7 +352,7 @@ class ManyHeterogeneousGoalsMaze(NullGoalMaze):
                contact_termination=True,
                physics_timestep=DEFAULT_PHYSICS_TIMESTEP,
                control_timestep=DEFAULT_CONTROL_TIMESTEP):
-    super().__init__(
+    super(ManyHeterogeneousGoalsMaze, self).__init__(
         walker=walker,
         maze_arena=maze_arena,
         randomize_spawn_position=randomize_spawn_position,
@@ -459,7 +456,7 @@ class ManyGoalsMaze(ManyHeterogeneousGoalsMaze):
                contact_termination=True,
                physics_timestep=DEFAULT_PHYSICS_TIMESTEP,
                control_timestep=DEFAULT_CONTROL_TIMESTEP):
-    super().__init__(
+    super(ManyGoalsMaze, self).__init__(
         walker=walker,
         maze_arena=maze_arena,
         target_builders=[target_builder],
@@ -494,7 +491,7 @@ class RepeatSingleGoalMazeAugmentedWithTargets(RepeatSingleGoalMaze):
                contact_termination=True,
                physics_timestep=DEFAULT_PHYSICS_TIMESTEP,
                control_timestep=DEFAULT_CONTROL_TIMESTEP):
-    super().__init__(
+    super(RepeatSingleGoalMazeAugmentedWithTargets, self).__init__(
         walker=walker,
         target=main_target,
         maze_arena=maze_arena,

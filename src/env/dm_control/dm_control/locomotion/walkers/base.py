@@ -15,6 +15,10 @@
 
 """Base class for Walkers."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import abc
 import collections
 
@@ -23,6 +27,7 @@ from dm_control.composer.observation import observable
 
 from dm_env import specs
 import numpy as np
+import six
 
 
 def _make_readonly_float64_copy(value):
@@ -65,7 +70,8 @@ class WalkerPose(collections.namedtuple(
             np.all(self.xquat == other.xquat))
 
 
-class Walker(composer.Robot, metaclass=abc.ABCMeta):
+@six.add_metaclass(abc.ABCMeta)
+class Walker(composer.Robot):
   """Abstract base class for Walker robots."""
 
   def create_root_joints(self, attachment_frame):
@@ -99,7 +105,8 @@ class Walker(composer.Robot, metaclass=abc.ABCMeta):
       ValueError: if `vec_in_world_frame` does not have shape ending with (2,)
         or (3,).
     """
-    return super().global_vector_to_local_frame(physics, vec_in_world_frame)
+    return super(Walker, self).global_vector_to_local_frame(
+        physics, vec_in_world_frame)
 
   def transform_xmat_to_egocentric_frame(self, physics, xmat):
     """Transforms another entity's `xmat` into this walker's egocentric frame.
@@ -120,7 +127,7 @@ class Walker(composer.Robot, metaclass=abc.ABCMeta):
     Raises:
       ValueError: if `xmat` does not have shape (3, 3) or (9,).
     """
-    return super().global_xmat_to_local_frame(physics, xmat)
+    return super(Walker, self).global_xmat_to_local_frame(physics, xmat)
 
   @abc.abstractproperty
   def root_body(self):
@@ -132,13 +139,10 @@ class Walker(composer.Robot, metaclass=abc.ABCMeta):
 
   @property
   def action_spec(self):
-    if not self.actuators:
-      minimum, maximum = (), ()
-    else:
-      minimum, maximum = zip(*[
-          a.ctrlrange if a.ctrlrange is not None else (-1., 1.)
-          for a in self.actuators
-      ])
+    minimum, maximum = zip(*[
+        a.ctrlrange if a.ctrlrange is not None else (-1., 1.)
+        for a in self.actuators
+    ])
     return specs.BoundedArray(
         shape=(len(self.actuators),),
         dtype=np.float,
@@ -169,11 +173,6 @@ class WalkerObservables(composer.Observables):
     return observable.MJCFFeature('sensordata',
                                   self._entity.mjcf_model.sensor.accelerometer)
 
-  @composer.observable
-  def sensors_framequat(self):
-    return observable.MJCFFeature('sensordata',
-                                  self._entity.mjcf_model.sensor.framequat)
-
   # Semantic groupings of Walker observables.
   def _collect_from_attachments(self, attribute_name):
     out = []
@@ -188,11 +187,10 @@ class WalkerObservables(composer.Observables):
 
   @property
   def kinematic_sensors(self):
-    return ([self.sensors_gyro,
-             self.sensors_accelerometer,
-             self.sensors_framequat] +
+    return ([self.sensors_gyro, self.sensors_accelerometer] +
             self._collect_from_attachments('kinematic_sensors'))
 
   @property
   def dynamic_sensors(self):
     return self._collect_from_attachments('dynamic_sensors')
+

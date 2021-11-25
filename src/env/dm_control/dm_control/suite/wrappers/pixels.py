@@ -15,7 +15,12 @@
 
 """Wrapper that adds pixel observations to a control environment."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import collections
+
 import dm_env
 from dm_env import specs
 
@@ -55,7 +60,7 @@ class Wrapper(dm_env.Environment):
     if isinstance(wrapped_observation_spec, specs.Array):
       self._observation_is_dict = False
       invalid_keys = set([STATE_KEY])
-    elif isinstance(wrapped_observation_spec, collections.abc.MutableMapping):
+    elif isinstance(wrapped_observation_spec, collections.MutableMapping):
       self._observation_is_dict = True
       invalid_keys = set(wrapped_observation_spec.keys())
     else:
