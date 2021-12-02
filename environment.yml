@@ -5,6 +5,7 @@ dependencies:
   - python
   - pytorch
   - torchvision
+  - cudatoolkit
   - absl-py
   - pyparsing
   - pip

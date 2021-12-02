@@ -24,10 +24,16 @@ If you find our work useful in your research, please consider citing the paper a
 ```
 
 ## Setup
-We assume that you have access to a GPU with CUDA support. All dependencies can then be installed with the following commands:
+First install Mujoco by unzipping it inside `~/.mujoco/` such that all Mujoco files are inside `~/.mujoco/Mujoco210/`.
+We assume that you have access to a GPU with CUDA support. All dependencies can then be installed with the following command:
 
 ```
 conda env create -f environment.yml
+```
+
+All dependencies are now in an envionment called `pad`, activate it with
+
+```
 conda activate pad
 ```
 
