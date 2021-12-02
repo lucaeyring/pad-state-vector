@@ -1,0 +1,23 @@
+name: pad
+channels:
+  - defaults
+dependencies:
+  - python
+  - pytorch
+  - torchvision
+  - absl-py
+  - pyparsing
+  - pip
+  - pip:
+    - git+git://github.com/matzewolf/dm_control.git
+    - git+git://github.com/matzewolf/dmc2gym.git
+    - pillow
+    - termcolor
+    - tb-nightly
+    - imageio
+    - imageio-ffmpeg
+    - opencv-python
+    - xmltodict
+    - scikit-image
+    - seaborn
+    - tqdm
