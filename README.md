@@ -24,7 +24,13 @@ If you find our work useful in your research, please consider citing the paper a
 ```
 
 ## Setup
-First install Mujoco by unzipping it inside `~/.mujoco/` such that all Mujoco files are inside `~/.mujoco/Mujoco210/`.
+First install Mujoco by unzipping it inside `~/.mujoco/` such that all Mujoco files are inside `~/.mujoco/mujoco210/`.
+
+You also need to install GLEW for rendering to work:
+```
+sudo apt install libglew2.1
+```
+
 We assume that you have access to a GPU with CUDA support. All dependencies can then be installed with the following command:
 
 ```

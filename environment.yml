@@ -1,11 +1,12 @@
 name: pad
 channels:
-  - defaults
-dependencies:
-  - python
+  - conda-forge
+  - nvidia
   - pytorch
-  - torchvision
-  - cudatoolkit
+dependencies:
+  - nvidia::cudatoolkit=11.3
+  - pytorch::pytorch
+  - pytorch::torchvision
   - absl-py
   - pyparsing
   - pip
