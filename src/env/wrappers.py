@@ -56,7 +56,7 @@ class CartpoleWrapper(gym.Wrapper):
 		self.time_step = 0
 		self._iteration = 0
 		self._lengths = [0.5, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.3, 1.4, 1.5]
-		self._masses = [0.0001, 0.2, 0.3, 0.5, 1.0, 2.0]
+		self._masses = [0.0001, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 	
 	def reset(self):
 		self.time_step = 0
@@ -161,7 +161,6 @@ class ColorWrapper(gym.Wrapper):
 	def _load_colors(self):
 		assert self._mode in {'color_easy', 'color_hard'}
 		self._colors = torch.load(f'src/env/data/{self._mode}.pt')
-		print(self._colors[0])
 
 	def get_random_color(self):
 		assert len(self._colors) >= 100, 'env must include at least 100 colors'
