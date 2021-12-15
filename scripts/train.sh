@@ -7,4 +7,5 @@ CUDA_VISIBLE_DEVICES=0 python3 src/train.py \
     --num_shared_layers 8 \
     --seed 0 \
     --work_dir logs/cartpole_swingup/inv/0 \
-    --save_model
+    --save_model \
+    --save_video

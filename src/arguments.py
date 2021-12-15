@@ -72,7 +72,8 @@ def parse_args():
 
 	args = parser.parse_args()
 
-	assert args.mode in {'train', 'color_easy', 'color_hard'} or 'video' in args.mode, f'unrecognized mode "{args.mode}"'
+	assert args.mode in {'train', 'color_easy', 'color_hard', 'cartpole_length'} or \
+		   'video' in args.mode, f'unrecognized mode "{args.mode}"'
 	assert args.seed is not None, 'must provide seed for experiment'
 	assert args.work_dir is not None, 'must provide a working directory for experiment'
 

@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 import dmc2gym
-from dm_control.suite.common.settings import get_model_and_assets_from_setting_kwargs
+from env.xml_edit import get_model_and_assets_from_setting_kwargs
 import cv2
 from collections import deque
 
@@ -35,12 +35,91 @@ def make_pad_env(
 	env.seed(seed)
 	env = GreenScreen(env, mode)
 	env = FrameStack(env, frame_stack)
-	env = ColorWrapper(env, mode)
+	if 'color' in mode:
+		env = ColorWrapper(env, mode)
+	if 'cartpole' in mode:
+		env = PoleDimWrapper(env, mode)
 
 	assert env.action_space.low.min() >= -1
 	assert env.action_space.high.max() <= 1
 
 	return env
+
+
+class PoleDimWrapper(gym.Wrapper):
+	"""Wrapper for the cartpole length experiments"""
+	def __init__(self, env, mode):
+		assert isinstance(env, FrameStack), 'wrapped env must be a framestack'
+		gym.Wrapper.__init__(self, env)
+		self._max_episode_steps = env._max_episode_steps
+		self._mode = mode
+		self.time_step = 0
+		self._lengths = [0.5, 1.5, 2, 2.5]
+		#self._lengths = [0.8, 0.85, 0.9, 0.95, 0.99, 1.0, 1.01, 1.05, 1.1, 1.15, 1.2]
+	
+	def reset(self):
+		self.time_step = 0
+		if 'cartpole_length' in self._mode:
+			self.randomize()
+		return self.env.reset()
+
+	def step(self, action):
+		self.time_step += 1
+		return self.env.step(action)
+
+	def randomize(self):
+		assert 'cartpole_length' in self._mode, f'can only randomize cartpole length, received {self._mode}'		
+		self.reload_physics({'cartpole_length': self.get_random_length()})
+
+	def get_random_length(self):
+		return self._lengths[randint(len(self._lengths))]
+
+	def reload_physics(self, setting_kwargs=None, state=None):
+		domain_name = self._get_dmc_wrapper()._domain_name
+		if setting_kwargs is None:
+			setting_kwargs = {}
+		if state is None:
+			state = self._get_state()
+		self._reload_physics(
+			*get_model_and_assets_from_setting_kwargs(
+				domain_name+'.xml', setting_kwargs
+			)
+		)
+		self._set_state(state)
+	
+	def get_state(self):
+		return self._get_state()
+	
+	def set_state(self, state):
+		self._set_state(state)
+
+	def _get_dmc_wrapper(self):
+		_env = self.env
+		while not isinstance(_env, dmc2gym.wrappers.DMCWrapper) and hasattr(_env, 'env'):
+			_env = _env.env
+		assert isinstance(_env, dmc2gym.wrappers.DMCWrapper), 'environment is not dmc2gym-wrapped'
+		return _env
+
+	def _reload_physics(self, xml_string, assets=None):
+		_env = self.env
+		while not hasattr(_env, '_physics') and hasattr(_env, 'env'):
+			_env = _env.env
+		assert hasattr(_env, '_physics'), 'environment does not have physics attribute'
+		_env.physics.reload_from_xml_string(xml_string, assets=assets)
+
+	def _get_physics(self):
+		_env = self.env
+		while not hasattr(_env, '_physics') and hasattr(_env, 'env'):
+			_env = _env.env
+		assert hasattr(_env, '_physics'), 'environment does not have physics attribute'
+
+		return _env._physics
+
+	def _get_state(self):
+		return self._get_physics().get_state()
+		
+	def _set_state(self, state):
+		self._get_physics().set_state(state)
 
 
 class ColorWrapper(gym.Wrapper):
@@ -78,6 +157,7 @@ class ColorWrapper(gym.Wrapper):
 	def _load_colors(self):
 		assert self._mode in {'color_easy', 'color_hard'}
 		self._colors = torch.load(f'src/env/data/{self._mode}.pt')
+		print(self._colors[0])
 
 	def get_random_color(self):
 		assert len(self._colors) >= 100, 'env must include at least 100 colors'
