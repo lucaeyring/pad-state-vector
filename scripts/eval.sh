@@ -7,5 +7,6 @@ CUDA_VISIBLE_DEVICES=0 python3 src/eval.py \
     --num_shared_layers 8 \
     --seed 0 \
     --work_dir logs/cartpole_swingup/inv/0 \
+    --pad_num_episodes 10 \
     --pad_checkpoint 500k \
     --save_video

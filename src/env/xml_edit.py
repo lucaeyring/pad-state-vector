@@ -26,11 +26,15 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
     materials = xmltodict.parse(assets['common/materials.xml'])
     skybox = xmltodict.parse(assets['common/skybox.xml'])
 
-    # Edit cartpole length
+    # Edit cartpole
     if 'cartpole_length' in setting_kwargs:
         assert isinstance(setting_kwargs['cartpole_length'], (int, float))
         model['mujoco']['default']['default']['geom']['@fromto'] = \
             f"0 0 0 0 0 {setting_kwargs['cartpole_length']}"
+    if 'cartpole_mass' in setting_kwargs:
+        assert isinstance(setting_kwargs['cartpole_mass'], (int, float))
+        model['mujoco']['default']['default']['geom']['@mass'] = \
+            f"{setting_kwargs['cartpole_mass']}"
 
     # Edit grid floor
     if 'grid_rgb1' in setting_kwargs:

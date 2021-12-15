@@ -12,14 +12,14 @@ from collections import deque
 
 
 def make_pad_env(
-		domain_name,
-		task_name,
-		seed=0,
-		episode_length=1000,
-		frame_stack=3,
-		action_repeat=4,
-		mode='train'
-	):
+	domain_name,
+	task_name,
+	seed=0,
+	episode_length=1000,
+	frame_stack=3,
+	action_repeat=4,
+	mode='train'
+):
 	"""Make environment for PAD experiments"""
 	env = dmc2gym.make(
 		domain_name=domain_name,
@@ -38,7 +38,7 @@ def make_pad_env(
 	if 'color' in mode:
 		env = ColorWrapper(env, mode)
 	if 'cartpole' in mode:
-		env = PoleDimWrapper(env, mode)
+		env = CartpoleWrapper(env, mode)
 
 	assert env.action_space.low.min() >= -1
 	assert env.action_space.high.max() <= 1
@@ -46,7 +46,7 @@ def make_pad_env(
 	return env
 
 
-class PoleDimWrapper(gym.Wrapper):
+class CartpoleWrapper(gym.Wrapper):
 	"""Wrapper for the cartpole length experiments"""
 	def __init__(self, env, mode):
 		assert isinstance(env, FrameStack), 'wrapped env must be a framestack'
@@ -54,25 +54,29 @@ class PoleDimWrapper(gym.Wrapper):
 		self._max_episode_steps = env._max_episode_steps
 		self._mode = mode
 		self.time_step = 0
-		self._lengths = [0.5, 1.5, 2, 2.5]
-		#self._lengths = [0.8, 0.85, 0.9, 0.95, 0.99, 1.0, 1.01, 1.05, 1.1, 1.15, 1.2]
+		self._iteration = 0
+		self._lengths = [0.5, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.3, 1.4, 1.5]
+		self._masses = [0.0001, 0.2, 0.3, 0.5, 1.0, 2.0]
 	
 	def reset(self):
 		self.time_step = 0
-		if 'cartpole_length' in self._mode:
-			self.randomize()
+		if 'cartpole' in self._mode:
+			self.next()
 		return self.env.reset()
 
 	def step(self, action):
 		self.time_step += 1
 		return self.env.step(action)
 
-	def randomize(self):
-		assert 'cartpole_length' in self._mode, f'can only randomize cartpole length, received {self._mode}'		
-		self.reload_physics({'cartpole_length': self.get_random_length()})
-
-	def get_random_length(self):
-		return self._lengths[randint(len(self._lengths))]
+	def next(self):
+		assert 'cartpole' in self._mode, f'can only set cartpole parameters, received {self._mode}'		
+		if (self._mode == 'cartpole_length'):
+			assert self._iteration < len(self._lengths), f'too many eval episodes'
+			self.reload_physics({'cartpole_length': self._lengths[self._iteration]})
+		elif (self._mode == 'cartpole_mass'):
+			assert self._iteration < len(self._masses), f'too many eval episodes'
+			self.reload_physics({'cartpole_mass': self._masses[self._iteration]})
+		self._iteration += 1
 
 	def reload_physics(self, setting_kwargs=None, state=None):
 		domain_name = self._get_dmc_wrapper()._domain_name
