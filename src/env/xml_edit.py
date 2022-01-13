@@ -5,7 +5,7 @@ from dm_control.utils import io as resources
 import xmltodict
 
 
-_SUITE_DIR = Path("/opt/conda/envs/pad/lib/python3.9/site-packages/dm_control/suite")
+_SUITE_DIR = Path("../../../../anaconda3/envs/pad/lib/python3.9/site-packages/dm_control/suite")
 _FILENAMES = [
     Path("common/materials.xml"),
     Path("common/skybox.xml"),
@@ -22,7 +22,7 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
         return common.read_model(_SUITE_DIR/model_fname), assets
 
     # Convert XML to dicts
-    model = xmltodict.parse(common.read_model(_SUITE_DIR/model_fname))
+    model = xmltodict.parse(common.read_model(model_fname))
     materials = xmltodict.parse(assets['common/materials.xml'])
     skybox = xmltodict.parse(assets['common/skybox.xml'])
 
@@ -35,6 +35,14 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
         assert isinstance(setting_kwargs['cartpole_mass'], (int, float))
         model['mujoco']['default']['default']['geom']['@mass'] = \
             f"{setting_kwargs['cartpole_mass']}"
+    if 'cartpole_size' in setting_kwargs:
+        assert isinstance(setting_kwargs['cartpole_size'], (int, float))
+        model['mujoco']['default']['default']['geom']['@size'] = \
+            f"{setting_kwargs['cartpole_size']}"
+    if 'cartpole_damping' in setting_kwargs:
+        assert isinstance(setting_kwargs['cartpole_damping'], (int, float))
+        model['mujoco']['default']['default']['joint']['@damping'] = \
+            f"{setting_kwargs['cartpole_damping']}"
 
     # Edit grid floor
     if 'grid_rgb1' in setting_kwargs:

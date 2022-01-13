@@ -23,9 +23,9 @@ class VideoRecorder(object):
                 width=self.width,
                 camera_id=self.camera_id
             )
-            if 'video' in env._mode:
-                greenscreen = env.env.env
-                frame = greenscreen.apply_to(frame)
+            #if 'video' in env._mode:
+            #    greenscreen = env.env.env
+            #    frame = greenscreen.apply_to(frame)
             self.frames.append(frame)
 
     def save(self, file_name):

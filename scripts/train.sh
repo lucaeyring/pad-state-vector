@@ -8,4 +8,4 @@ CUDA_VISIBLE_DEVICES=0 python3 src/train.py \
     --seed 0 \
     --work_dir logs/cartpole_swingup/inv/0 \
     --save_model \
-    --save_video
+    --use_state_vector

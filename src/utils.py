@@ -45,7 +45,7 @@ def make_dir(dir_path):
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions"""
-    def __init__(self, obs_shape, action_shape, capacity, batch_size):
+    def __init__(self, obs_shape, state_vector_shape, action_shape, capacity, batch_size):
         self.capacity = capacity
         self.batch_size = batch_size
 
@@ -54,6 +54,8 @@ class ReplayBuffer(object):
 
         self.obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
+        self.state_vectors = np.empty((capacity, *state_vector_shape), dtype=np.float32)
+        self.next_state_vectors = np.empty((capacity, *state_vector_shape), dtype=np.float32)
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
         self.rewards = np.empty((capacity, 1), dtype=np.float32)
         self.not_dones = np.empty((capacity, 1), dtype=np.float32)
@@ -61,12 +63,14 @@ class ReplayBuffer(object):
         self.idx = 0
         self.full = False
 
-    def add(self, obs, action, reward, next_obs, done):
+    def add(self, obs, action, reward, next_obs, done, state_vector, next_state_vector):
         np.copyto(self.obses[self.idx], obs)
         np.copyto(self.actions[self.idx], action)
         np.copyto(self.rewards[self.idx], reward)
         np.copyto(self.next_obses[self.idx], next_obs)
         np.copyto(self.not_dones[self.idx], not done)
+        np.copyto(self.state_vectors[self.idx], state_vector)
+        np.copyto(self.next_state_vectors[self.idx], next_state_vector)
 
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
@@ -81,11 +85,13 @@ class ReplayBuffer(object):
         rewards = torch.as_tensor(self.rewards[idxs]).cuda()
         next_obses = torch.as_tensor(self.next_obses[idxs]).float().cuda()
         not_dones = torch.as_tensor(self.not_dones[idxs]).cuda()
+        state_vectors = torch.as_tensor(self.state_vectors[idxs]).cuda()
+        next_state_vectors = torch.as_tensor(self.next_state_vectors[idxs]).cuda()
 
         obses = random_crop(obses)
         next_obses = random_crop(next_obses)
 
-        return obses, actions, rewards, next_obses, not_dones
+        return obses, actions, rewards, next_obses, not_dones, state_vectors, next_state_vectors
 
     def sample_curl(self):
         idxs = np.random.randint(

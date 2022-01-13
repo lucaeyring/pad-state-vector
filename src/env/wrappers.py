@@ -57,6 +57,8 @@ class CartpoleWrapper(gym.Wrapper):
 		self._iteration = 0
 		self._lengths = [0.5, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2, 1.3, 1.4, 1.5]
 		self._masses = [0.0001, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+		self._sizes = [0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15]
+		self._damping = [6e-3, 7e-3, 8e-3, 9e-3, 1e-2, 2e-2, 3e-2, 4e-2, 5e-2, 1e-1]
 	
 	def reset(self):
 		self.time_step = 0
@@ -76,54 +78,13 @@ class CartpoleWrapper(gym.Wrapper):
 		elif (self._mode == 'cartpole_mass'):
 			assert self._iteration < len(self._masses), f'too many eval episodes'
 			self.reload_physics({'cartpole_mass': self._masses[self._iteration]})
+		elif (self._mode == 'cartpole_size'):
+			assert self._iteration < len(self._sizes), f'too many eval episodes'
+			self.reload_physics({'cartpole_size': self._sizes[self._iteration]})
+		elif (self._mode == 'cartpole_damping'):
+			assert self._iteration < len(self._damping), f'too many eval episodes'
+			self.reload_physics({'cartpole_damping': self._damping[self._iteration]})
 		self._iteration += 1
-
-	def reload_physics(self, setting_kwargs=None, state=None):
-		domain_name = self._get_dmc_wrapper()._domain_name
-		if setting_kwargs is None:
-			setting_kwargs = {}
-		if state is None:
-			state = self._get_state()
-		self._reload_physics(
-			*get_model_and_assets_from_setting_kwargs(
-				domain_name+'.xml', setting_kwargs
-			)
-		)
-		self._set_state(state)
-	
-	def get_state(self):
-		return self._get_state()
-	
-	def set_state(self, state):
-		self._set_state(state)
-
-	def _get_dmc_wrapper(self):
-		_env = self.env
-		while not isinstance(_env, dmc2gym.wrappers.DMCWrapper) and hasattr(_env, 'env'):
-			_env = _env.env
-		assert isinstance(_env, dmc2gym.wrappers.DMCWrapper), 'environment is not dmc2gym-wrapped'
-		return _env
-
-	def _reload_physics(self, xml_string, assets=None):
-		_env = self.env
-		while not hasattr(_env, '_physics') and hasattr(_env, 'env'):
-			_env = _env.env
-		assert hasattr(_env, '_physics'), 'environment does not have physics attribute'
-		_env.physics.reload_from_xml_string(xml_string, assets=assets)
-
-	def _get_physics(self):
-		_env = self.env
-		while not hasattr(_env, '_physics') and hasattr(_env, 'env'):
-			_env = _env.env
-		assert hasattr(_env, '_physics'), 'environment does not have physics attribute'
-
-		return _env._physics
-
-	def _get_state(self):
-		return self._get_physics().get_state()
-		
-	def _set_state(self, state):
-		self._get_physics().set_state(state)
 
 
 class ColorWrapper(gym.Wrapper):
@@ -166,6 +127,53 @@ class ColorWrapper(gym.Wrapper):
 		assert len(self._colors) >= 100, 'env must include at least 100 colors'
 		return self._colors[randint(len(self._colors))]
 
+
+class FrameStack(gym.Wrapper):
+	"""Stack frames as observation"""
+	def __init__(self, env, k):
+		gym.Wrapper.__init__(self, env)
+		self._k = k
+		self._frames = deque([], maxlen=k)
+		self._state_vectors = deque([], maxlen=k)
+		obs_shape = env.observation_space.shape
+		self.observation_space = gym.spaces.Box(
+			low=0,
+			high=1,
+			shape=((obs_shape[0] * k,) + obs_shape[1:]),
+			dtype=env.observation_space.dtype
+		)
+		self._max_episode_steps = env._max_episode_steps
+
+	def reset(self):
+		obs = self.env.reset()
+		state_vector = self.get_state_vector()
+		for _ in range(self._k):
+			self._frames.append(obs)
+			self._state_vectors.append(state_vector)
+		return self._get_obs(), self.get_state_vectors()
+
+	def step(self, action):
+		obs, reward, done, info = self.env.step(action)
+		state_vector = self.get_state_vector()
+		self._frames.append(obs)
+		self._state_vectors.append(state_vector)
+		return self._get_obs(), reward, done, info, self.get_state_vectors()
+
+	def _get_obs(self):
+		assert len(self._frames) == self._k
+		return np.concatenate(list(self._frames), axis=0)
+
+	def get_state_vector(self):
+		(velocity_one, velocity_two) = self._get_physics().velocity()
+		pole_angle_cosine = self._get_physics().pole_angle_cosine()[0]
+		cart_position = np.float64((self._get_physics().cart_position()))
+		angular_vel = self._get_physics().angular_vel()[0]
+		return np.array([velocity_one, velocity_two, pole_angle_cosine, cart_position, angular_vel])
+	
+	def get_state_vectors(self):
+		assert len(self._state_vectors) == self._k
+		return np.concatenate(list(self._state_vectors), axis=0)
+	
 	def reload_physics(self, setting_kwargs=None, state=None):
 		domain_name = self._get_dmc_wrapper()._domain_name
 		if setting_kwargs is None:
@@ -190,7 +198,6 @@ class ColorWrapper(gym.Wrapper):
 		while not isinstance(_env, dmc2gym.wrappers.DMCWrapper) and hasattr(_env, 'env'):
 			_env = _env.env
 		assert isinstance(_env, dmc2gym.wrappers.DMCWrapper), 'environment is not dmc2gym-wrapped'
-
 		return _env
 
 	def _reload_physics(self, xml_string, assets=None):
@@ -213,38 +220,6 @@ class ColorWrapper(gym.Wrapper):
 		
 	def _set_state(self, state):
 		self._get_physics().set_state(state)
-
-
-class FrameStack(gym.Wrapper):
-	"""Stack frames as observation"""
-	def __init__(self, env, k):
-		gym.Wrapper.__init__(self, env)
-		self._k = k
-		self._frames = deque([], maxlen=k)
-		shp = env.observation_space.shape
-		self.observation_space = gym.spaces.Box(
-			low=0,
-			high=1,
-			shape=((shp[0] * k,) + shp[1:]),
-			dtype=env.observation_space.dtype
-		)
-		self._max_episode_steps = env._max_episode_steps
-
-	def reset(self):
-		obs = self.env.reset()
-		for _ in range(self._k):
-			self._frames.append(obs)
-		return self._get_obs()
-
-	def step(self, action):
-		obs, reward, done, info = self.env.step(action)
-		self._frames.append(obs)
-		return self._get_obs(), reward, done, info
-
-	def _get_obs(self):
-		assert len(self._frames) == self._k
-		return np.concatenate(list(self._frames), axis=0)
-
 
 def rgb_to_hsv(r, g, b):
 	"""Convert RGB color to HSV color"""

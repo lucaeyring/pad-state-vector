@@ -78,7 +78,7 @@ class PixelEncoder(nn.Module):
 
 		return out
 
-	def copy_conv_weights_from(self, source, n=None):
+	def copy_weights_from(self, source, n=None):
 		"""Tie n first convolutional layers"""
 		if n is None:
 			n = self.num_layers
@@ -97,3 +97,66 @@ def make_encoder(
 	return PixelEncoder(
 		obs_shape, feature_dim, num_layers, num_filters, num_shared_layers
 	)
+
+
+def make_state_vector_encoder(
+	state_vector_shape, feature_dim, num_layers, hidden_dim, num_shared_layers
+):
+	return StateVectorEncoder(
+		state_vector_shape, feature_dim, num_layers, hidden_dim, num_shared_layers
+	)
+
+
+class StateVectorEncoder(nn.Module):
+	"""MLP encoder of state vector observations"""
+	def __init__(self, state_vector_shape, feature_dim, num_layers=4, hidden_dim=1024, num_shared_layers=4):
+		super().__init__()
+		assert len(state_vector_shape) == 1
+
+		self.feature_dim = feature_dim
+		self.num_layers = num_layers
+		self.num_shared_layers = num_shared_layers
+
+		self.layers = nn.ModuleList(
+			[nn.Sequential(
+				nn.Linear(state_vector_shape[0], hidden_dim),
+				nn.LayerNorm(hidden_dim),
+				nn.GELU(),
+			)]
+		)
+		for i in range(num_layers - 1):
+			self.layers.append(nn.Sequential(
+								nn.Linear(hidden_dim, hidden_dim),
+								nn.LayerNorm(hidden_dim),
+								nn.GELU(),
+							))
+
+		self.fc = nn.Linear(hidden_dim, self.feature_dim)
+		self.ln = nn.LayerNorm(self.feature_dim)
+
+	def forward_linear(self, state_vector, detach=False):
+		embedding = self.layers[0](state_vector)
+
+		for i in range(1, self.num_layers):
+			embedding = self.layers[i](embedding)
+			if i == self.num_shared_layers-1 and detach:
+				embedding = embedding.detach()
+
+		return embedding
+
+	def forward(self, state_vector, detach=False):
+		h = self.forward_linear(state_vector, detach)
+		h_fc = self.fc(h)
+		h_norm = self.ln(h_fc)
+		out = torch.tanh(h_norm)
+
+		return out
+
+	def copy_weights_from(self, source, n=None):
+		"""Tie n first convolutional layers"""
+		if n is None:
+			n = self.num_layers
+		for i in range(n):
+			tie_weights(src=source.layers[i][0], trg=self.layers[i][0])
+			tie_weights(src=source.layers[i][1], trg=self.layers[i][1])
+	

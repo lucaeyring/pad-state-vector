@@ -4,16 +4,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils
-from agent.encoder import make_encoder
+from agent.encoder import make_encoder, make_state_vector_encoder
 
 LOG_FREQ = 10000
 
 
-def make_agent(obs_shape, action_shape, args):
+def make_agent(obs_shape, state_vector_shape, action_shape, args):
     return SacSSAgent(
         obs_shape=obs_shape,
+        state_vector_shape=state_vector_shape,
         action_shape=action_shape,
+        use_state_vector=args.use_state_vector,
         hidden_dim=args.hidden_dim,
+        encoder_hidden_dim=args.encoder_hidden_dim,
         discount=args.discount,
         init_temperature=args.init_temperature,
         alpha_lr=args.alpha_lr,
@@ -80,15 +83,21 @@ def weight_init(m):
 class Actor(nn.Module):
     """MLP actor network."""
     def __init__(
-        self, obs_shape, action_shape, hidden_dim,
+        self, obs_shape, action_shape, hidden_dim,  use_state_vector,
+        state_vector_shape, encodere_hidden_dim,
         encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, num_shared_layers
     ):
         super().__init__()
-
-        self.encoder = make_encoder(
-            obs_shape, encoder_feature_dim, num_layers,
-            num_filters, num_shared_layers
-        )
+        if use_state_vector:
+            self.encoder = make_state_vector_encoder(
+                state_vector_shape, encoder_feature_dim, num_layers,
+                encodere_hidden_dim, num_shared_layers
+            )
+        else:
+            self.encoder = make_encoder(
+                obs_shape, encoder_feature_dim, num_layers,
+                num_filters, num_shared_layers
+            )
 
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
@@ -211,15 +220,23 @@ class CURL(nn.Module):
 class Critic(nn.Module):
     """Critic network, employes two q-functions."""
     def __init__(
-        self, obs_shape, action_shape, hidden_dim,
+        self, obs_shape, action_shape, hidden_dim, use_state_vector,
+        state_vector_shape, encodere_hidden_dim,
         encoder_feature_dim, num_layers, num_filters, num_shared_layers
     ):
         super().__init__()
 
-        self.encoder = make_encoder(
-            obs_shape, encoder_feature_dim, num_layers,
-            num_filters, num_shared_layers
-        )
+        
+        if use_state_vector:
+            self.encoder = make_state_vector_encoder(
+                state_vector_shape, encoder_feature_dim, num_layers,
+                encodere_hidden_dim, num_shared_layers
+            )
+        else:
+            self.encoder = make_encoder(
+                obs_shape, encoder_feature_dim, num_layers,
+                num_filters, num_shared_layers
+            )
 
         self.Q1 = QFunction(
             self.encoder.feature_dim, action_shape[0], hidden_dim
@@ -247,8 +264,11 @@ class SacSSAgent(object):
     def __init__(
         self,
         obs_shape,
+        state_vector_shape,
         action_shape,
+        use_state_vector,
         hidden_dim=256,
+        encoder_hidden_dim=256,
         discount=0.99,
         init_temperature=0.01,
         alpha_lr=1e-3,
@@ -287,27 +307,30 @@ class SacSSAgent(object):
         self.curl_latent_dim = curl_latent_dim
 
         assert num_layers >= num_shared_layers, 'num shared layers cannot exceed total amount'
-
+        self.use_state_vector = use_state_vector
         self.actor = Actor(
-            obs_shape, action_shape, hidden_dim,
+            obs_shape, action_shape, hidden_dim, use_state_vector,
+            state_vector_shape, encoder_hidden_dim,
             encoder_feature_dim, actor_log_std_min, actor_log_std_max,
             num_layers, num_filters, num_layers
         ).cuda()
 
         self.critic = Critic(
-            obs_shape, action_shape, hidden_dim,
+            obs_shape, action_shape, hidden_dim, use_state_vector,
+            state_vector_shape, encoder_hidden_dim,
             encoder_feature_dim, num_layers, num_filters, num_layers
         ).cuda()
 
         self.critic_target = Critic(
-            obs_shape, action_shape, hidden_dim,
+            obs_shape, action_shape, hidden_dim, use_state_vector,
+            state_vector_shape, encoder_hidden_dim,
             encoder_feature_dim, num_layers, num_filters, num_layers
         ).cuda()
 
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         # tie encoders between actor and critic
-        self.actor.encoder.copy_conv_weights_from(self.critic.encoder)
+        self.actor.encoder.copy_weights_from(self.critic.encoder)
 
         self.log_alpha = torch.tensor(np.log(init_temperature)).cuda()
         self.log_alpha.requires_grad = True
@@ -321,11 +344,17 @@ class SacSSAgent(object):
         self.ss_encoder = None
 
         if use_rot or use_inv:
-            self.ss_encoder = make_encoder(
-                obs_shape, encoder_feature_dim, num_layers,
-                num_filters, num_shared_layers
-            ).cuda()
-            self.ss_encoder.copy_conv_weights_from(self.critic.encoder, num_shared_layers)
+            if use_state_vector:
+                self.ss_encoder = make_state_vector_encoder(
+                    state_vector_shape, encoder_feature_dim, num_layers,
+                    encoder_hidden_dim, num_shared_layers
+                ).cuda()
+            else:
+                self.ss_encoder = make_encoder(
+                    obs_shape, encoder_feature_dim, num_layers,
+                    num_filters, num_shared_layers
+                ).cuda()
+            self.ss_encoder.copy_weights_from(self.critic.encoder, num_shared_layers)
             
             # rotation
             if use_rot:
@@ -485,7 +514,8 @@ class SacSSAgent(object):
         return rot_loss.item()
 
     def update_inv(self, obs, next_obs, action, L=None, step=None):
-        assert obs.shape[-1] == 84 and next_obs.shape[-1] == 84
+        if not self.use_state_vector:
+            assert obs.shape[-1] == 84 and next_obs.shape[-1] == 84
 
         h = self.ss_encoder(obs)
         h_next = self.ss_encoder(next_obs)
@@ -536,8 +566,12 @@ class SacSSAgent(object):
         if self.use_curl:
             obs, action, reward, next_obs, not_done, curl_kwargs = replay_buffer.sample_curl()
         else:
-            obs, action, reward, next_obs, not_done = replay_buffer.sample()
+            obs, action, reward, next_obs, not_done, state_vector, next_state_vector = replay_buffer.sample()
         
+        if self.use_state_vector:
+            obs = state_vector
+            next_obs = next_state_vector
+
         L.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, action, reward, next_obs, not_done, L, step)

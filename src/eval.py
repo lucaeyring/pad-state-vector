@@ -28,7 +28,7 @@ def evaluate(env, agent, args, video, adapt=False):
 			)
 		video.init(enabled=True)
 
-		obs = env.reset()
+		obs, state_vector = env.reset()
 		done = False
 		episode_reward = 0
 		losses = []
@@ -39,7 +39,7 @@ def evaluate(env, agent, args, video, adapt=False):
 			# Take step
 			with utils.eval_mode(ep_agent):
 				action = ep_agent.select_action(obs)
-			next_obs, reward, done, _ = env.step(action)
+			next_obs, reward, done, _, state_vector = env.step(action)
 			episode_reward += reward
 			
 			# Make self-supervised update if flag is true
@@ -107,8 +107,10 @@ def main(args):
 	# Prepare agent
 	assert torch.cuda.is_available(), 'must have cuda enabled'
 	cropped_obs_shape = (3*args.frame_stack, 84, 84)
+	state_shape = tuple(x * args.frame_stack for x in env.state_space.shape)
 	agent = make_agent(
 		obs_shape=cropped_obs_shape,
+		state_vector_shape=state_shape,
 		action_shape=env.action_space.shape,
 		args=args
 	)
