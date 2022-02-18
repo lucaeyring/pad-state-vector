@@ -15,13 +15,13 @@ def parse_args():
 	
 	# agent
 	parser.add_argument('--init_steps', default=1000, type=int)
-	parser.add_argument('--train_steps', default=50000, type=int)
+	parser.add_argument('--train_steps', default=500000, type=int)
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
 
 	# eval
-	parser.add_argument('--save_freq', default=1000, type=int)
-	parser.add_argument('--eval_freq', default=1000, type=int)
+	parser.add_argument('--save_freq', default=50000, type=int)
+	parser.add_argument('--eval_freq', default=50000, type=int)
 	parser.add_argument('--eval_episodes', default=10, type=int)
 
 	# critic
@@ -39,8 +39,8 @@ def parse_args():
 
 	# encoder
 	parser.add_argument('--use_state_vector', default=False, action='store_true') # use state vector as input
-	parser.add_argument('--encoder_feature_dim', default=100, type=int)
-	parser.add_argument('--encoder_hidden_dim', default=1024, type=int)
+	parser.add_argument('--encoder_feature_dim', default=50, type=int)
+	parser.add_argument('--encoder_hidden_dim', default=512, type=int)
 	parser.add_argument('--encoder_lr', default=1e-3, type=float)
 	parser.add_argument('--encoder_tau', default=0.05, type=float)
 

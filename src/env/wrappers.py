@@ -34,7 +34,7 @@ def make_pad_env(
 	)
 	env.seed(seed)
 	env = GreenScreen(env, mode)
-	env = FrameStack(env, frame_stack)
+	env = FrameStack(env, frame_stack, domain_name)
 	if 'color' in mode:
 		env = ColorWrapper(env, mode)
 	if 'cartpole' in mode:
@@ -130,11 +130,12 @@ class ColorWrapper(gym.Wrapper):
 
 class FrameStack(gym.Wrapper):
 	"""Stack frames as observation"""
-	def __init__(self, env, k):
+	def __init__(self, env, k, domain_name):
 		gym.Wrapper.__init__(self, env)
 		self._k = k
 		self._frames = deque([], maxlen=k)
 		self._state_vectors = deque([], maxlen=k)
+		self.domain_name = domain_name
 		obs_shape = env.observation_space.shape
 		self.observation_space = gym.spaces.Box(
 			low=0,
@@ -164,11 +165,15 @@ class FrameStack(gym.Wrapper):
 		return np.concatenate(list(self._frames), axis=0)
 
 	def get_state_vector(self):
-		(velocity_one, velocity_two) = self._get_physics().velocity()
-		pole_angle_cosine = self._get_physics().pole_angle_cosine()[0]
-		cart_position = np.float64((self._get_physics().cart_position()))
-		angular_vel = self._get_physics().angular_vel()[0]
-		return np.array([velocity_one, velocity_two, pole_angle_cosine, cart_position, angular_vel])
+		if 'cartpole' in self.domain_name:
+			(velocity_one, velocity_two) = self._get_physics().velocity()
+			pole_angle_cosine = self._get_physics().pole_angle_cosine()[0]
+			cart_position = np.float64((self._get_physics().cart_position()))
+			angular_vel = self._get_physics().angular_vel()[0]
+			state_vector = np.array([velocity_one, velocity_two, pole_angle_cosine, cart_position, angular_vel])
+		elif 'cheetah' in self.domain_name:
+			state_vector = np.array([*self._get_physics().velocity(), *self._get_physics().position()])
+		return state_vector
 	
 	def get_state_vectors(self):
 		assert len(self._state_vectors) == self._k

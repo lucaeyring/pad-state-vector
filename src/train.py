@@ -52,7 +52,10 @@ def main(args):
 
 	# Prepare agent
 	assert torch.cuda.is_available(), 'must have cuda enabled'
-	state_shape = tuple(x * args.frame_stack for x in env.state_space.shape)
+	if 'cartpole' in args.domain_name:
+		state_shape = (5 * args.frame_stack,)
+	elif 'cheetah' in args.domain_name:
+		state_shape = (18 * args.frame_stack,)
 	replay_buffer = utils.ReplayBuffer(
 		obs_shape=env.observation_space.shape,
 		state_vector_shape=state_shape,
