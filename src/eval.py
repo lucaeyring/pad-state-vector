@@ -99,6 +99,7 @@ def init_env(args):
 			domain_name=args.domain_name,
 			task_name=args.task_name,
 			seed=args.seed,
+			frame_stack=args.frame_stack,
 			episode_length=args.episode_length,
 			action_repeat=args.action_repeat,
 			mode=args.mode
