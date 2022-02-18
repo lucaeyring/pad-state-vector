@@ -87,6 +87,35 @@ class CartpoleWrapper(gym.Wrapper):
 		self._iteration += 1
 
 
+class CheetahWrapper(gym.Wrapper):
+	"""Wrapper for the cheetah experiments"""
+	def __init__(self, env, mode):
+		assert isinstance(env, FrameStack), 'wrapped env must be a framestack'
+		gym.Wrapper.__init__(self, env)
+		self._max_episode_steps = env._max_episode_steps
+		self._mode = mode
+		self.time_step = 0
+		self._iteration = 0
+		self._length_factors = [0.5, 0.6, 0.7, 0.8, 0.9, 1.11, 1.25, 1.43, 1.67, 2.0]
+	
+	def reset(self):
+		self.time_step = 0
+		if 'cheetah' in self._mode:
+			self.next()
+		return self.env.reset()
+
+	def step(self, action):
+		self.time_step += 1
+		return self.env.step(action)
+
+	def next(self):
+		assert 'cheetah' in self._mode, f'can only set cheetah parameters, received {self._mode}'		
+		if (self._mode == 'cheetah_leg_length'):
+			assert self._iteration < len(self._lengths), f'too many eval episodes'
+			self.reload_physics({'cheetah_leg_length': self._length_factors[self._iteration]})
+		self._iteration += 1
+
+		
 class ColorWrapper(gym.Wrapper):
 	"""Wrapper for the color experiments"""
 	def __init__(self, env, mode):
