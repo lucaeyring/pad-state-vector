@@ -28,7 +28,7 @@ def evaluate(env, agent, args, video, adapt=False):
 			)
 		video.init(enabled=True)
 
-		obs, state_vector = env.reset()
+		obs = env.reset()
 		done = False
 		episode_reward = 0
 		losses = []
@@ -38,11 +38,8 @@ def evaluate(env, agent, args, video, adapt=False):
 		while not done:
 			# Take step
 			with utils.eval_mode(ep_agent):
-				if args.use_state_vector:
-					action = ep_agent.select_action(state_vector)
-				else:
-					action = ep_agent.select_action(obs)
-			next_obs, reward, done, _, next_state_vector = env.step(action)
+				action = ep_agent.select_action(obs)
+			next_obs, reward, done, _ = env.step(action)
 			episode_reward += reward
 			
 			# Make self-supervised update if flag is true
@@ -59,12 +56,8 @@ def evaluate(env, agent, args, video, adapt=False):
 				if args.use_inv: # inverse dynamics model
 
 					# Prepare batch of observations
-					if args.use_state_vector:
-						batch_obs = torch.Tensor(state_vector).cuda().unsqueeze(0).repeat(args.pad_batch_size, 1)
-						batch_next_obs = torch.Tensor(next_state_vector).cuda().unsqueeze(0).repeat(args.pad_batch_size, 1)
-					else:
-						batch_obs = utils.batch_from_obs(torch.Tensor(obs).cuda(), batch_size=args.pad_batch_size)
-						batch_next_obs = utils.batch_from_obs(torch.Tensor(next_obs).cuda(), batch_size=args.pad_batch_size)
+					batch_obs = utils.batch_from_obs(torch.Tensor(obs).cuda(), batch_size=args.pad_batch_size)
+					batch_next_obs = utils.batch_from_obs(torch.Tensor(next_obs).cuda(), batch_size=args.pad_batch_size)
 					batch_action = torch.Tensor(action).cuda().unsqueeze(0).repeat(args.pad_batch_size, 1)
 
 					# Adapt using inverse dynamics prediction
@@ -84,7 +77,6 @@ def evaluate(env, agent, args, video, adapt=False):
 
 			video.record(env, losses)
 			obs = next_obs
-			state_vector = next_state_vector
 			step += 1
 
 		video.save(f'{args.mode}_pad_{i}.mp4' if adapt else f'{args.mode}_eval_{i}.mp4')
@@ -102,7 +94,8 @@ def init_env(args):
 			frame_stack=args.frame_stack,
 			episode_length=args.episode_length,
 			action_repeat=args.action_repeat,
-			mode=args.mode
+			mode=args.mode,
+			use_state_vector=args.use_state_vector
 		)
 
 
@@ -115,11 +108,11 @@ def main(args):
 
 	# Prepare agent
 	assert torch.cuda.is_available(), 'must have cuda enabled'
-	cropped_obs_shape = (3*args.frame_stack, 84, 84)
-	state_shape = tuple(x * args.frame_stack for x in env.state_space.shape)
+	obs_shape = env.observation_space.shape
+	if not args.use_state_vector:
+		obs_shape = (3*args.frame_stack, 84, 84)
 	agent = make_agent(
-		obs_shape=cropped_obs_shape,
-		state_vector_shape=state_shape,
+		obs_shape=obs_shape,
 		action_shape=env.action_space.shape,
 		args=args
 	)

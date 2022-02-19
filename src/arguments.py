@@ -15,7 +15,7 @@ def parse_args():
 	
 	# agent
 	parser.add_argument('--init_steps', default=1000, type=int)
-	parser.add_argument('--train_steps', default=500000, type=int)
+	parser.add_argument('--train_steps', default=5000, type=int)
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
 
@@ -75,7 +75,7 @@ def parse_args():
 	args = parser.parse_args()
 
 	assert args.mode in {
-		'train', 'color_easy', 'color_hard', 'cartpole_length', 'cartpole_mass', 'cartpole_size', 'cartpole_damping'
+		'train', 'color_easy', 'color_hard', 'cartpole_length', 'cartpole_mass', 'cartpole_size', 'cartpole_damping', 'cheetah_leg_length'
 	} or 'video' in args.mode, f'unrecognized mode "{args.mode}"'
 	assert args.seed is not None, 'must provide seed for experiment'
 	assert args.work_dir is not None, 'must provide a working directory for experiment'

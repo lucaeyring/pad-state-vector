@@ -4,15 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils
-from agent.encoder import make_encoder, make_state_vector_encoder
+from agent.encoder import make_encoder
 
 LOG_FREQ = 10000
 
 
-def make_agent(obs_shape, state_vector_shape, action_shape, args):
+def make_agent(obs_shape, action_shape, args):
     return SacSSAgent(
         obs_shape=obs_shape,
-        state_vector_shape=state_vector_shape,
         action_shape=action_shape,
         use_state_vector=args.use_state_vector,
         hidden_dim=args.hidden_dim,
@@ -83,20 +82,13 @@ def weight_init(m):
 class Actor(nn.Module):
     """MLP actor network."""
     def __init__(
-        self, obs_shape, action_shape, hidden_dim,  use_state_vector,
-        state_vector_shape, encodere_hidden_dim,
+        self, obs_shape, action_shape, hidden_dim,  use_state_vector, encoder_hidden_dim,
         encoder_feature_dim, log_std_min, log_std_max, num_layers, num_filters, num_shared_layers
     ):
         super().__init__()
-        if use_state_vector:
-            self.encoder = make_state_vector_encoder(
-                state_vector_shape, encoder_feature_dim, num_layers,
-                encodere_hidden_dim, num_shared_layers
-            )
-        else:
-            self.encoder = make_encoder(
-                obs_shape, encoder_feature_dim, num_layers,
-                num_filters, num_shared_layers
+        self.encoder = make_encoder(
+                use_state_vector, obs_shape, encoder_feature_dim, num_layers,
+                encoder_hidden_dim, num_filters, num_shared_layers
             )
 
         self.log_std_min = log_std_min
@@ -220,22 +212,14 @@ class CURL(nn.Module):
 class Critic(nn.Module):
     """Critic network, employes two q-functions."""
     def __init__(
-        self, obs_shape, action_shape, hidden_dim, use_state_vector,
-        state_vector_shape, encodere_hidden_dim,
+        self, obs_shape, action_shape, hidden_dim, use_state_vector, encoder_hidden_dim,
         encoder_feature_dim, num_layers, num_filters, num_shared_layers
     ):
         super().__init__()
 
-        
-        if use_state_vector:
-            self.encoder = make_state_vector_encoder(
-                state_vector_shape, encoder_feature_dim, num_layers,
-                encodere_hidden_dim, num_shared_layers
-            )
-        else:
-            self.encoder = make_encoder(
-                obs_shape, encoder_feature_dim, num_layers,
-                num_filters, num_shared_layers
+        self.encoder = make_encoder(
+                use_state_vector, obs_shape, encoder_feature_dim, num_layers,
+                encoder_hidden_dim, num_filters, num_shared_layers
             )
 
         self.Q1 = QFunction(
@@ -264,7 +248,6 @@ class SacSSAgent(object):
     def __init__(
         self,
         obs_shape,
-        state_vector_shape,
         action_shape,
         use_state_vector,
         hidden_dim=256,
@@ -309,21 +292,18 @@ class SacSSAgent(object):
         assert num_layers >= num_shared_layers, 'num shared layers cannot exceed total amount'
         self.use_state_vector = use_state_vector
         self.actor = Actor(
-            obs_shape, action_shape, hidden_dim, use_state_vector,
-            state_vector_shape, encoder_hidden_dim,
+            obs_shape, action_shape, hidden_dim, use_state_vector, encoder_hidden_dim,
             encoder_feature_dim, actor_log_std_min, actor_log_std_max,
             num_layers, num_filters, num_layers
         ).cuda()
 
         self.critic = Critic(
-            obs_shape, action_shape, hidden_dim, use_state_vector,
-            state_vector_shape, encoder_hidden_dim,
+            obs_shape, action_shape, hidden_dim, use_state_vector, encoder_hidden_dim,
             encoder_feature_dim, num_layers, num_filters, num_layers
         ).cuda()
 
         self.critic_target = Critic(
-            obs_shape, action_shape, hidden_dim, use_state_vector,
-            state_vector_shape, encoder_hidden_dim,
+            obs_shape, action_shape, hidden_dim, use_state_vector, encoder_hidden_dim,
             encoder_feature_dim, num_layers, num_filters, num_layers
         ).cuda()
 
@@ -344,16 +324,10 @@ class SacSSAgent(object):
         self.ss_encoder = None
 
         if use_rot or use_inv:
-            if use_state_vector:
-                self.ss_encoder = make_state_vector_encoder(
-                    state_vector_shape, encoder_feature_dim, num_layers,
-                    encoder_hidden_dim, num_shared_layers
-                ).cuda()
-            else:
-                self.ss_encoder = make_encoder(
-                    obs_shape, encoder_feature_dim, num_layers,
-                    num_filters, num_shared_layers
-                ).cuda()
+            self.ss_encoder = make_encoder(
+                use_state_vector, obs_shape, encoder_feature_dim, num_layers,
+                encoder_hidden_dim, num_filters, num_shared_layers
+            ).cuda()
             self.ss_encoder.copy_weights_from(self.critic.encoder, num_shared_layers)
             
             # rotation
@@ -566,11 +540,7 @@ class SacSSAgent(object):
         if self.use_curl:
             obs, action, reward, next_obs, not_done, curl_kwargs = replay_buffer.sample_curl()
         else:
-            obs, action, reward, next_obs, not_done, state_vector, next_state_vector = replay_buffer.sample()
-        
-        if self.use_state_vector:
-            obs = state_vector
-            next_obs = next_state_vector
+            obs, action, reward, next_obs, not_done = replay_buffer.sample()
 
         L.log('train/batch_reward', reward.mean(), step)
 

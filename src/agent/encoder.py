@@ -87,24 +87,19 @@ class PixelEncoder(nn.Module):
 
 
 def make_encoder(
-	obs_shape, feature_dim, num_layers, num_filters, num_shared_layers
+	use_state_vector, obs_shape, feature_dim, num_layers, hidden_dim, num_filters, num_shared_layers
 ):
-	assert num_layers in OUT_DIM.keys(), 'invalid number of layers'
-	if num_shared_layers == -1 or num_shared_layers == None:
-		num_shared_layers = num_layers
-	assert num_shared_layers <= num_layers and num_shared_layers > 0, \
-		f'invalid number of shared layers, received {num_shared_layers} layers'
-	return PixelEncoder(
-		obs_shape, feature_dim, num_layers, num_filters, num_shared_layers
-	)
-
-
-def make_state_vector_encoder(
-	state_vector_shape, feature_dim, num_layers, hidden_dim, num_shared_layers
-):
-	return StateVectorEncoder(
-		state_vector_shape, feature_dim, num_layers, hidden_dim, num_shared_layers
-	)
+	if use_state_vector:
+		return StateVectorEncoder(obs_shape, feature_dim, num_layers, hidden_dim, num_shared_layers)
+	else:
+		assert num_layers in OUT_DIM.keys(), 'invalid number of layers'
+		if num_shared_layers == -1 or num_shared_layers == None:
+			num_shared_layers = num_layers
+		assert num_shared_layers <= num_layers and num_shared_layers > 0, \
+			f'invalid number of shared layers, received {num_shared_layers} layers'
+		return PixelEncoder(
+			obs_shape, feature_dim, num_layers, num_filters, num_shared_layers
+		)
 
 
 class StateVectorEncoder(nn.Module):

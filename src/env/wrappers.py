@@ -18,15 +18,17 @@ def make_pad_env(
 	episode_length=1000,
 	frame_stack=3,
 	action_repeat=4,
-	mode='train'
+	mode='train',
+	use_state_vector=False
 ):
 	"""Make environment for PAD experiments"""
+	from_pixels = not use_state_vector
 	env = dmc2gym.make(
 		domain_name=domain_name,
 		task_name=task_name,
 		seed=seed,
 		visualize_reward=False,
-		from_pixels=True,
+		from_pixels=from_pixels,
 		height=100,
 		width=100,
 		episode_length=episode_length,
@@ -35,10 +37,12 @@ def make_pad_env(
 	env.seed(seed)
 	env = GreenScreen(env, mode)
 	env = FrameStack(env, frame_stack, domain_name)
-	if 'color' in mode:
+	if from_pixels and 'color' in mode:
 		env = ColorWrapper(env, mode)
 	if 'cartpole' in mode:
 		env = CartpoleWrapper(env, mode)
+	if 'cheetah' in mode:
+		env = CheetahWrapper(env, mode)
 
 	assert env.action_space.low.min() >= -1
 	assert env.action_space.high.max() <= 1
@@ -111,7 +115,7 @@ class CheetahWrapper(gym.Wrapper):
 	def next(self):
 		assert 'cheetah' in self._mode, f'can only set cheetah parameters, received {self._mode}'		
 		if (self._mode == 'cheetah_leg_length'):
-			assert self._iteration < len(self._lengths), f'too many eval episodes'
+			assert self._iteration < len(self._length_factors), f'too many eval episodes'
 			self.reload_physics({'cheetah_leg_length': self._length_factors[self._iteration]})
 		self._iteration += 1
 
@@ -176,37 +180,18 @@ class FrameStack(gym.Wrapper):
 
 	def reset(self):
 		obs = self.env.reset()
-		state_vector = self.get_state_vector()
 		for _ in range(self._k):
 			self._frames.append(obs)
-			self._state_vectors.append(state_vector)
-		return self._get_obs(), self.get_state_vectors()
+		return self._get_obs()
 
 	def step(self, action):
 		obs, reward, done, info = self.env.step(action)
-		state_vector = self.get_state_vector()
 		self._frames.append(obs)
-		self._state_vectors.append(state_vector)
-		return self._get_obs(), reward, done, info, self.get_state_vectors()
-
+		return self._get_obs(), reward, done, info
+		
 	def _get_obs(self):
 		assert len(self._frames) == self._k
 		return np.concatenate(list(self._frames), axis=0)
-
-	def get_state_vector(self):
-		if 'cartpole' in self.domain_name:
-			(velocity_one, velocity_two) = self._get_physics().velocity()
-			pole_angle_cosine = self._get_physics().pole_angle_cosine()[0]
-			cart_position = np.float64((self._get_physics().cart_position()))
-			angular_vel = self._get_physics().angular_vel()[0]
-			state_vector = np.array([velocity_one, velocity_two, pole_angle_cosine, cart_position, angular_vel])
-		elif 'cheetah' in self.domain_name:
-			state_vector = np.array([*self._get_physics().velocity(), *self._get_physics().position()])
-		return state_vector
-	
-	def get_state_vectors(self):
-		assert len(self._state_vectors) == self._k
-		return np.concatenate(list(self._state_vectors), axis=0)
 	
 	def reload_physics(self, setting_kwargs=None, state=None):
 		domain_name = self._get_dmc_wrapper()._domain_name
