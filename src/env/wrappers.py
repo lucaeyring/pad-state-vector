@@ -101,7 +101,9 @@ class CheetahWrapper(gym.Wrapper):
 		self.time_step = 0
 		self._iteration = 0
 		self._length_factors = [0.5, 0.6, 0.7, 0.8, 0.9, 1.11, 1.25, 1.43, 1.67, 2.0]
-	
+		self._masses = [10, 11, 12, 13, 15, 16, 17, 18]
+		self._ground_friction = [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0]
+
 	def reset(self):
 		self.time_step = 0
 		if 'cheetah' in self._mode:
@@ -117,6 +119,12 @@ class CheetahWrapper(gym.Wrapper):
 		if (self._mode == 'cheetah_leg_length'):
 			assert self._iteration < len(self._length_factors), f'too many eval episodes'
 			self.reload_physics({'cheetah_leg_length': self._length_factors[self._iteration]})
+		elif (self._mode == 'cheetah_mass'):
+			assert self._iteration < len(self._masses), f'too many eval episodes'
+			self.reload_physics({'cheetah_mass': self._masses[self._iteration]})
+		elif (self._mode == 'cheetah_ground_friction'):
+			assert self._iteration < len(self._ground_friction), f'too many eval episodes'
+			self.reload_physics({'cheetah_ground_friction': self._ground_friction[self._iteration]})
 		self._iteration += 1
 
 		

@@ -78,7 +78,14 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
             f"{fshin_radius} {fshin_length * setting_kwargs['cheetah_leg_length']}"
         model['mujoco']['worldbody']['body']['body'][1]['body']['body']['geom']['@size'] = \
             f"{ffoot_radius} {ffoot_length * setting_kwargs['cheetah_leg_length']}"
-
+    if 'cheetah_mass' in setting_kwargs:
+        assert isinstance(setting_kwargs['cheetah_mass'], (int, float))
+        model['mujoco']['compiler']['@settotalmass'] = \
+            f"{setting_kwargs['cheetah_mass']}"
+    if 'cheetah_ground_friction' in setting_kwargs:
+        assert isinstance(setting_kwargs['cheetah_ground_friction'], (int, float))
+        model['mujoco']['worldbody']['geom']['@friction'] = \
+            f"{setting_kwargs['cheetah_ground_friction']} 0.005 0.0001"
 
     # Edit grid floor
     if 'grid_rgb1' in setting_kwargs:
