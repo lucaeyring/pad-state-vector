@@ -127,7 +127,40 @@ class CheetahWrapper(gym.Wrapper):
 			self.reload_physics({'cheetah_ground_friction': self._ground_friction[self._iteration]})
 		self._iteration += 1
 
-		
+
+class WalkerWrapper(gym.Wrapper):
+    """Wrapper for the walker experiments"""
+    def __init__(self, env, mode):
+        assert isinstance(env, FrameStack), 'wrapped env must be a framestack'
+        gym.Wrapper.__init__(self, env)
+        self._max_episode_steps = env._max_episode_steps
+        self._mode = mode
+        self.time_step = 0
+        self._iteration = 0
+        self._torso_length = [0.1, 0.15, 0.2, 0.25, 0.35, 0.4, 0.45, 0.5]
+        self._ground_friction = [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0]
+    
+    def reset(self):
+        self.time_step = 0
+        if 'walker' in self._mode:
+            self.next()
+        return self.env.reset()
+    
+    def step(self, action):
+        self.time_step += 1
+        return self.env.step(action)
+
+    def next(self):
+        assert 'walker' in self._mode, f'can only set walker parameters, received {self._mode}'
+        if (self._mode == 'walker_torso_length'):
+            assert self._iteration < len(self._torso_length), f'too many eval episodes'
+            self.reload_physics({'walker_torso_length': self._torso_length[self._iteration]})
+        elif (self._mode == 'walker_ground_friction'):
+            assert self._iteration < len(self._ground_friction), f'too many eval episodes'
+            self.reload_physics({'walker_ground_friction': self._ground_friction[self._iteration]})
+            self._iteration += 1
+
+
 class ColorWrapper(gym.Wrapper):
 	"""Wrapper for the color experiments"""
 	def __init__(self, env, mode):
