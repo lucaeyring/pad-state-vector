@@ -15,13 +15,13 @@ def parse_args():
 	
 	# agent
 	parser.add_argument('--init_steps', default=1000, type=int)
-	parser.add_argument('--train_steps', default=5000, type=int)
+	parser.add_argument('--train_steps', default=500000, type=int)
 	parser.add_argument('--batch_size', default=128, type=int)
 	parser.add_argument('--hidden_dim', default=1024, type=int)
 
 	# eval
-	parser.add_argument('--save_freq', default=1000, type=int)
-	parser.add_argument('--eval_freq', default=1000, type=int)
+	parser.add_argument('--save_freq', default=50000, type=int)
+	parser.add_argument('--eval_freq', default=50000, type=int)
 	parser.add_argument('--eval_episodes', default=10, type=int)
 
 	# critic
@@ -38,7 +38,9 @@ def parse_args():
 	parser.add_argument('--actor_update_freq', default=2, type=int)
 
 	# encoder
-	parser.add_argument('--encoder_feature_dim', default=100, type=int)
+	parser.add_argument('--use_state_vector', default=False, action='store_true') # use state vector as input
+	parser.add_argument('--encoder_feature_dim', default=50, type=int)
+	parser.add_argument('--encoder_hidden_dim', default=512, type=int)
 	parser.add_argument('--encoder_lr', default=1e-3, type=float)
 	parser.add_argument('--encoder_tau', default=0.05, type=float)
 
@@ -73,7 +75,9 @@ def parse_args():
 	args = parser.parse_args()
 
 	assert args.mode in {
-		'train', 'color_easy', 'color_hard', 'cartpole_length', 'cartpole_mass'
+		'train', 'color_easy', 'color_hard', 'cartpole_length', 'cartpole_mass', 'cartpole_size',
+		'cartpole_damping', 'cheetah_leg_length', 'cheetah_mass', 'cheetah_ground_friction',
+		'walker_torso_length', 'walker_ground_friction'
 	} or 'video' in args.mode, f'unrecognized mode "{args.mode}"'
 	assert args.seed is not None, 'must provide seed for experiment'
 	assert args.work_dir is not None, 'must provide a working directory for experiment'

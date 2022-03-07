@@ -5,7 +5,7 @@ from dm_control.utils import io as resources
 import xmltodict
 
 
-_SUITE_DIR = Path("/opt/conda/envs/pad/lib/python3.9/site-packages/dm_control/suite")
+_SUITE_DIR = Path("../../../../anaconda3/envs/pad/lib/python3.9/site-packages/dm_control/suite")
 _FILENAMES = [
     Path("common/materials.xml"),
     Path("common/skybox.xml"),
@@ -22,7 +22,7 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
         return common.read_model(_SUITE_DIR/model_fname), assets
 
     # Convert XML to dicts
-    model = xmltodict.parse(common.read_model(_SUITE_DIR/model_fname))
+    model = xmltodict.parse(common.read_model(model_fname))
     materials = xmltodict.parse(assets['common/materials.xml'])
     skybox = xmltodict.parse(assets['common/skybox.xml'])
 
@@ -35,6 +35,67 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
         assert isinstance(setting_kwargs['cartpole_mass'], (int, float))
         model['mujoco']['default']['default']['geom']['@mass'] = \
             f"{setting_kwargs['cartpole_mass']}"
+    if 'cartpole_size' in setting_kwargs:
+        assert isinstance(setting_kwargs['cartpole_size'], (int, float))
+        model['mujoco']['default']['default']['geom']['@size'] = \
+            f"{setting_kwargs['cartpole_size']}"
+    if 'cartpole_damping' in setting_kwargs:
+        assert isinstance(setting_kwargs['cartpole_damping'], (int, float))
+        model['mujoco']['default']['default']['joint']['@damping'] = \
+            f"{setting_kwargs['cartpole_damping']}"
+
+    
+    # Edit cheetah
+    if 'cheetah_leg_length' in setting_kwargs:
+        assert isinstance(setting_kwargs['cheetah_leg_length'], (int, float))
+        bthigh_size = model['mujoco']['worldbody']['body']['body'][0]['geom']['@size']
+        bthigh_radius = float(bthigh_size.split(' ')[0])
+        bthigh_length = float(bthigh_size.split(' ')[1])
+        bshin_size = model['mujoco']['worldbody']['body']['body'][0]['body']['geom']['@size']
+        bshin_radius = float(bshin_size.split(' ')[0])
+        bshin_length = float(bshin_size.split(' ')[1])
+        bfoot_size = model['mujoco']['worldbody']['body']['body'][0]['body']['body']['geom']['@size']
+        bfoot_radius = float(bfoot_size.split(' ')[0])
+        bfoot_length = float(bfoot_size.split(' ')[1])
+        fthigh_size = model['mujoco']['worldbody']['body']['body'][1]['geom']['@size']
+        fthigh_radius = float(fthigh_size.split(' ')[0])
+        fthigh_length = float(fthigh_size.split(' ')[1])
+        fshin_size = model['mujoco']['worldbody']['body']['body'][1]['body']['geom']['@size']
+        fshin_radius = float(fshin_size.split(' ')[0])
+        fshin_length = float(fshin_size.split(' ')[1])
+        ffoot_size = model['mujoco']['worldbody']['body']['body'][1]['body']['body']['geom']['@size']
+        ffoot_radius = float(ffoot_size.split(' ')[0])
+        ffoot_length = float(ffoot_size.split(' ')[1])
+        model['mujoco']['worldbody']['body']['body'][0]['geom']['@size'] = \
+            f"{bthigh_radius} {bthigh_length * setting_kwargs['cheetah_leg_length']}"
+        model['mujoco']['worldbody']['body']['body'][0]['body']['geom']['@size'] = \
+            f"{bshin_radius} {bshin_length * setting_kwargs['cheetah_leg_length']}"
+        model['mujoco']['worldbody']['body']['body'][0]['body']['body']['geom']['@size'] = \
+            f"{bfoot_radius} {bfoot_length * setting_kwargs['cheetah_leg_length']}"
+        model['mujoco']['worldbody']['body']['body'][1]['geom']['@size'] = \
+            f"{fthigh_radius} {fthigh_length * setting_kwargs['cheetah_leg_length']}"
+        model['mujoco']['worldbody']['body']['body'][1]['body']['geom']['@size'] = \
+            f"{fshin_radius} {fshin_length * setting_kwargs['cheetah_leg_length']}"
+        model['mujoco']['worldbody']['body']['body'][1]['body']['body']['geom']['@size'] = \
+            f"{ffoot_radius} {ffoot_length * setting_kwargs['cheetah_leg_length']}"
+    if 'cheetah_mass' in setting_kwargs:
+        assert isinstance(setting_kwargs['cheetah_mass'], (int, float))
+        model['mujoco']['compiler']['@settotalmass'] = \
+            f"{setting_kwargs['cheetah_mass']}"
+    if 'cheetah_ground_friction' in setting_kwargs:
+        assert isinstance(setting_kwargs['cheetah_ground_friction'], (int, float))
+        model['mujoco']['worldbody']['geom']['@friction'] = \
+            f"{setting_kwargs['cheetah_ground_friction']} 0.005 0.0001"
+
+    # Edit walker
+    if 'walker_torso_length' in setting_kwargs:
+        assert isinstance(setting_kwargs['walker_torso_length'], (int, float))
+        model['mujoco']['worldbody']['body']['geom']['@size'] = \
+            f"0.07 {setting_kwargs['walker_torso_length']}"
+    if 'walker_ground_friction' in setting_kwargs:
+        assert isinstance(setting_kwargs['walker_ground_friction'], (int, float))
+        model['mujoco']['worldbody']['geom']['@friction'] = \
+            f"{setting_kwargs['walker_ground_friction']} 0.005 0.0001"
 
     # Edit grid floor
     if 'grid_rgb1' in setting_kwargs:

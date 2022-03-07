@@ -91,9 +91,11 @@ def init_env(args):
 			domain_name=args.domain_name,
 			task_name=args.task_name,
 			seed=args.seed,
+			frame_stack=args.frame_stack,
 			episode_length=args.episode_length,
 			action_repeat=args.action_repeat,
-			mode=args.mode
+			mode=args.mode,
+			use_state_vector=args.use_state_vector
 		)
 
 
@@ -106,9 +108,11 @@ def main(args):
 
 	# Prepare agent
 	assert torch.cuda.is_available(), 'must have cuda enabled'
-	cropped_obs_shape = (3*args.frame_stack, 84, 84)
+	obs_shape = env.observation_space.shape
+	if not args.use_state_vector:
+		obs_shape = (3*args.frame_stack, 84, 84)
 	agent = make_agent(
-		obs_shape=cropped_obs_shape,
+		obs_shape=obs_shape,
 		action_shape=env.action_space.shape,
 		args=args
 	)
