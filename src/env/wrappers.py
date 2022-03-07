@@ -139,15 +139,25 @@ class WalkerWrapper(gym.Wrapper):
         self._mode = mode
         self.time_step = 0
         self._iteration = 0
+<<<<<<< HEAD
         self._torso_length = [0.1, 0.15, 0.2, 0.25, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]
         self._ground_friction = [2.0, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8, 4.1, 4.4, 4.7]
 
+=======
+        self._torso_length = [0.1, 0.15, 0.2, 0.25, 0.35, 0.4, 0.45, 0.5]
+        self._ground_friction = [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0]
+    
+>>>>>>> 4db8669ddbd46f0ab5a20a50e967cc1c050b9fe4
     def reset(self):
         self.time_step = 0
         if 'walker' in self._mode:
             self.next()
         return self.env.reset()
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 4db8669ddbd46f0ab5a20a50e967cc1c050b9fe4
     def step(self, action):
         self.time_step += 1
         return self.env.step(action)
@@ -162,7 +172,11 @@ class WalkerWrapper(gym.Wrapper):
             self.reload_physics({'walker_ground_friction': self._ground_friction[self._iteration]})
             self._iteration += 1
 
+<<<<<<< HEAD
 		
+=======
+
+>>>>>>> 4db8669ddbd46f0ab5a20a50e967cc1c050b9fe4
 class ColorWrapper(gym.Wrapper):
 	"""Wrapper for the color experiments"""
 	def __init__(self, env, mode):
