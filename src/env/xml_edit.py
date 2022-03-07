@@ -87,6 +87,16 @@ def get_model_and_assets_from_setting_kwargs(model_fname, setting_kwargs=None):
         model['mujoco']['worldbody']['geom']['@friction'] = \
             f"{setting_kwargs['cheetah_ground_friction']} 0.005 0.0001"
 
+    # Edit walker
+    if 'walker_torso_length' in setting_kwargs:
+        assert isinstance(setting_kwargs['walker_torso_length'], (int, float))
+        model['mujoco']['worldbody']['body']['geom']['@size'] = \
+            f"0.07 {setting_kwargs['walker_torso_length']}"
+    if 'walker_ground_friction' in setting_kwargs:
+        assert isinstance(setting_kwargs['walker_ground_friction'], (int, float))
+        model['mujoco']['worldbody']['geom']['@friction'] = \
+            f"{setting_kwargs['walker_ground_friction']} 0.005 0.0001"
+
     # Edit grid floor
     if 'grid_rgb1' in setting_kwargs:
         assert isinstance(setting_kwargs['grid_rgb1'], (list, tuple, np.ndarray))

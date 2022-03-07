@@ -43,7 +43,9 @@ def make_pad_env(
 		env = CartpoleWrapper(env, mode)
 	if 'cheetah' in mode:
 		env = CheetahWrapper(env, mode)
-
+	if 'walker' in mode:
+		env = WalkerWrapper(env, mode)
+	
 	assert env.action_space.low.min() >= -1
 	assert env.action_space.high.max() <= 1
 
@@ -101,8 +103,8 @@ class CheetahWrapper(gym.Wrapper):
 		self.time_step = 0
 		self._iteration = 0
 		self._length_factors = [0.5, 0.6, 0.7, 0.8, 0.9, 1.11, 1.25, 1.43, 1.67, 2.0]
-		self._masses = [10, 11, 12, 13, 15, 16, 17, 18]
-		self._ground_friction = [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0]
+		self._masses = [8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5]
+		self._ground_friction = [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 2.0, 2.3, 2.6]
 
 	def reset(self):
 		self.time_step = 0
@@ -126,6 +128,39 @@ class CheetahWrapper(gym.Wrapper):
 			assert self._iteration < len(self._ground_friction), f'too many eval episodes'
 			self.reload_physics({'cheetah_ground_friction': self._ground_friction[self._iteration]})
 		self._iteration += 1
+
+
+class WalkerWrapper(gym.Wrapper):
+    """Wrapper for the walker experiments"""
+    def __init__(self, env, mode):
+        assert isinstance(env, FrameStack), 'wrapped env must be a framestack'
+        gym.Wrapper.__init__(self, env)
+        self._max_episode_steps = env._max_episode_steps
+        self._mode = mode
+        self.time_step = 0
+        self._iteration = 0
+        self._torso_length = [0.1, 0.15, 0.2, 0.25, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]
+        self._ground_friction = [2.0, 2.3, 2.6, 2.9, 3.2, 3.5, 3.8, 4.1, 4.4, 4.7]
+
+    def reset(self):
+        self.time_step = 0
+        if 'walker' in self._mode:
+            self.next()
+        return self.env.reset()
+
+    def step(self, action):
+        self.time_step += 1
+        return self.env.step(action)
+
+    def next(self):
+        assert 'walker' in self._mode, f'can only set walker parameters, received {self._mode}'
+        if (self._mode == 'walker_torso_length'):
+            assert self._iteration < len(self._torso_length), f'too many eval episodes'
+            self.reload_physics({'walker_torso_length': self._torso_length[self._iteration]})
+        elif (self._mode == 'walker_ground_friction'):
+            assert self._iteration < len(self._ground_friction), f'too many eval episodes'
+            self.reload_physics({'walker_ground_friction': self._ground_friction[self._iteration]})
+            self._iteration += 1
 
 		
 class ColorWrapper(gym.Wrapper):
@@ -196,7 +231,7 @@ class FrameStack(gym.Wrapper):
 		obs, reward, done, info = self.env.step(action)
 		self._frames.append(obs)
 		return self._get_obs(), reward, done, info
-		
+
 	def _get_obs(self):
 		assert len(self._frames) == self._k
 		return np.concatenate(list(self._frames), axis=0)

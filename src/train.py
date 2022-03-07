@@ -55,7 +55,8 @@ def main(args):
 		obs_shape=env.observation_space.shape,
 		action_shape=env.action_space.shape,
 		capacity=args.train_steps,
-		batch_size=args.batch_size
+		batch_size=args.batch_size,
+		use_state_vector=args.use_state_vector
 	)
 	if not args.use_state_vector:
 		obs_shape = (3 * args.frame_stack, 84, 84)

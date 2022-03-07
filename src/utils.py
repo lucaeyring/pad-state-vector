@@ -45,13 +45,13 @@ def make_dir(dir_path):
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions"""
-    def __init__(self, obs_shape, action_shape, capacity, batch_size):
+    def __init__(self, obs_shape, action_shape, capacity, batch_size, use_state_vector):
         self.capacity = capacity
         self.batch_size = batch_size
 
         # the proprioceptive obs is stored as float32, pixels obs as uint8
         obs_dtype = np.float32 if len(obs_shape) == 1 else np.uint8
-
+        self.use_state_vector = use_state_vector
         self.obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=obs_dtype)
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
@@ -82,8 +82,9 @@ class ReplayBuffer(object):
         next_obses = torch.as_tensor(self.next_obses[idxs]).float().cuda()
         not_dones = torch.as_tensor(self.not_dones[idxs]).cuda()
 
-        obses = random_crop(obses)
-        next_obses = random_crop(next_obses)
+        if not self.use_state_vector:
+            obses = random_crop(obses)
+            next_obses = random_crop(next_obses)
 
         return obses, actions, rewards, next_obses, not_dones
 
@@ -100,9 +101,10 @@ class ReplayBuffer(object):
 
         pos = obses.clone()
 
-        obses = random_crop(obses)
-        next_obses = random_crop(next_obses)
-        pos = random_crop(pos)
+        if not self.use_state_vector:
+            obses = random_crop(obses)
+            next_obses = random_crop(next_obses)
+            pos = random_crop(pos)
         
         curl_kwargs = dict(obs_anchor=obses, obs_pos=pos,
                           time_anchor=None, time_pos=None)
@@ -128,8 +130,11 @@ def get_curl_pos_neg(obs, replay_buffer):
 def batch_from_obs(obs, batch_size=32):
 	"""Converts a pixel obs (C,H,W) to a batch (B,C,H,W) of given size"""
 	if isinstance(obs, torch.Tensor):
-		if len(obs.shape)==3:
+		if len(obs.shape) == 3:
 			obs = obs.unsqueeze(0)
+		# if obs is state vector
+		elif len(obs.shape) == 1:
+			return obs.repeat(batch_size, 1)
 		return obs.repeat(batch_size, 1, 1, 1)
 
 	if len(obs.shape)==3:
@@ -163,7 +168,6 @@ def random_crop_cuda(x, size=84, w1=None, h1=None, return_w1_h1=False):
 	"""Vectorized CUDA implementation of random crop"""
 	assert isinstance(x, torch.Tensor) and x.is_cuda, \
 		'input must be CUDA tensor'
-	
 	n = x.shape[0]
 	img_size = x.shape[-1]
 	crop_max = img_size - size
