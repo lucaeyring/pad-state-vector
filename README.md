@@ -1,6 +1,6 @@
 ## Self-Supervised Policy Adaptation during Deployment (PAD)
 
-In this project we exstend this work by [Hansen et al.](https://nicklashansen.github.io/) [[Paper]](https://arxiv.org/abs/2007.04309) [[Website]](https://nicklashansen.github.io/PAD/) [[Code]](https://github.com/nicklashansen/policy-adaptation-during-deployment) who show that PAD can adapt well to visual changes in the test environment given a vision-based input.
+In this project we exstend the work by [Hansen et al.](https://nicklashansen.github.io/) [[Paper]](https://arxiv.org/abs/2007.04309) [[Website]](https://nicklashansen.github.io/PAD/) [[Code]](https://github.com/nicklashansen/policy-adaptation-during-deployment) who show that PAD can adapt well to visual changes in the test environment given a vision-based input.
 
 We investigate the performance of PAD when **adjusting the underlying dynamics** of the test environment instead of just visual pertubations. Additionally, we evaluate PAD on a **state vector input** instead of an image together with an according new encoder architecture.
 
